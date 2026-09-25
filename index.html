@@ -1,0 +1,205 @@
+<title>Nekyia</title>
+<meta name="description" content="A descent into the psyche with C. G. Jung: an animated, interactive map of analytical psychology.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Spectral:ital,wght@0,300;0,400;0,500;1,300;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --night: #120d1f;
+    --deep: #0b0714;
+    --glass: rgba(14, 9, 26, 0.62);
+    --glass-strong: rgba(11, 7, 20, 0.86);
+    --line: rgba(222, 206, 246, 0.16);
+    --text: #efe7f4;
+    --muted: #b7abc8;
+    --faint: #8e82a3;
+    --ink: #2a1f44;
+    --gold: #f1d49a;
+    --violet: #b79ae8;
+    --rose: #e0a5b3;
+    --tint: #b79ae8;
+    --display: 'Marcellus', 'Cormorant Garamond', Georgia, serif;
+    --body: 'Spectral', Georgia, 'Times New Roman', serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  html, body { background: var(--night); color: var(--text); }
+  body { margin: 0; font-family: var(--body); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+  /* The map */
+  #bg, #fg { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #bg { z-index: 0; background: linear-gradient(#cdb8aa, #4d4468 22%, #120b24 45%, #05030b 85%, #0d0816); }
+  #fg { z-index: 1; pointer-events: none; }
+  #track { position: relative; z-index: 2; pointer-events: none; }
+  #hits { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  .hit {
+    position: absolute; left: 0; top: 0; pointer-events: auto; border: 0; border-radius: 50%;
+    background: transparent; cursor: pointer; padding: 0; will-change: transform;
+  }
+  .hit .lbl {
+    position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%);
+    white-space: nowrap; font-family: var(--display); font-size: 17px; letter-spacing: 0.06em;
+    color: var(--lbl, var(--text)); text-shadow: 0 0 12px var(--lblglow, rgba(0,0,0,.6)); pointer-events: none;
+    transition: opacity .4s;
+  }
+  .hit .lbl small { display: block; text-align: center; font-family: var(--body); font-style: italic; font-size: 14px; letter-spacing: 0; opacity: .85; }
+  .hit.seen .lbl::after { content: ' ·'; color: var(--gold); }
+
+  /* Intro */
+  .intro {
+    position: absolute; left: 0; right: 0; top: 0; min-height: 100vh; min-height: 100svh;
+    display: grid; place-content: center; padding-inline: 20px; text-align: center; pointer-events: auto;
+    color: var(--ink);
+  }
+  .intro h1 { font-family: var(--display); font-weight: 400; font-size: clamp(56px, 13vw, 132px); line-height: .95; margin: 0; letter-spacing: 0.04em; }
+  .intro .sub { font-style: italic; font-size: clamp(18px, 2.4vw, 23px); margin: 14px auto 0; max-width: 34ch; }
+  .intro .how { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; margin-top: 34px; opacity: .8; }
+  .intro .how span { display: inline-block; animation: sink 2.8s ease-in-out infinite; }
+  @keyframes sink { 50% { transform: translateY(7px); } }
+  .intro .begin { margin-top: 18px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .intro .begin button { border: 1px solid rgba(42,31,68,.45); background: rgba(255,248,240,.28); border-radius: 999px; padding: 10px 20px; cursor: pointer; color: var(--ink); font-size: 16px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .intro .begin button:hover { background: rgba(255,248,240,.5); }
+  .intro .credit { font-size: 14px; opacity: .72; margin-top: 30px; }
+
+  /* HUD */
+  .hud { position: fixed; z-index: 5; display: flex; gap: 8px; align-items: center; }
+  .hud-left { top: calc(14px + env(safe-area-inset-top, 0px)); left: 14px; }
+  .hud-right { top: calc(14px + env(safe-area-inset-top, 0px)); right: 14px; flex-wrap: wrap; justify-content: flex-end; max-width: 70vw; }
+  .chip, .ctl {
+    background: var(--glass); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); font-family: var(--mono); font-size: 12px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--text);
+  }
+  .ctl { cursor: pointer; }
+  .ctl:hover { border-color: rgba(241, 212, 154, .55); }
+  .ctl[aria-pressed="true"] { background: rgba(241, 212, 154, .2); border-color: rgba(241, 212, 154, .6); }
+  .chip b { font-weight: 500; color: var(--gold); margin-right: 8px; }
+  #spiral { position: fixed; z-index: 5; left: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: 132px; height: 132px; border-radius: 50%; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  #spiral .node { cursor: pointer; }
+  .spiral-cap { position: fixed; z-index: 5; left: 150px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: var(--glass); padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); }
+
+  /* Chamber */
+  .chamber { position: fixed; inset: 0; z-index: 10; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); background: var(--glass-strong); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .chamber .stage { position: relative; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+  .chamber .canvas-wrap { position: relative; flex: 1; min-height: 0; touch-action: none; }
+  .chamber canvas.demo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .chamber .howto { font-style: italic; color: var(--muted); padding: 16px 20px 0; padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-right: 120px; font-size: 16px; }
+  .chamber .controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px; align-items: center; }
+  .chamber .caption { min-height: 3.2em; padding: 0 20px 16px; color: var(--text); font-size: 16px; }
+  .btn {
+    border: 1px solid var(--line); background: rgba(255,255,255,.04); border-radius: 999px; padding: 8px 15px; cursor: pointer;
+    font-size: 15px; color: var(--text);
+  }
+  .btn:hover { border-color: rgba(241,212,154,.55); }
+  .btn[aria-pressed="true"], .btn.on { background: rgba(241,212,154,.18); border-color: rgba(241,212,154,.7); color: #fff3db; }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .field { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); }
+  .field input[type=range] { width: min(240px, 50vw); accent-color: var(--gold); }
+  .field input[type=text] { background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; color: var(--text); font: inherit; font-size: 18px; width: min(260px, 60vw); }
+  .chamber article { overflow-y: auto; padding: 28px clamp(20px, 3vw, 44px) 60px; padding-top: calc(28px + env(safe-area-inset-top, 0px)); }
+  .chamber article .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--tint); }
+  .chamber article h2 { font-family: var(--display); font-weight: 400; font-size: clamp(34px, 4vw, 48px); line-height: 1.05; margin: 8px 0 6px; text-wrap: balance; }
+  .chamber article .lede { font-style: italic; font-size: 20px; color: var(--muted); margin: 0 0 22px; }
+  .chamber article p { max-width: 62ch; margin: 0 0 16px; font-weight: 300; }
+  .chamber article h3 { font-family: var(--mono); font-weight: 500; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin: 28px 0 10px; }
+  .chamber article ul.src { list-style: none; padding: 0; margin: 0; font-size: 15px; color: var(--muted); }
+  .chamber article ul.src li { padding: 6px 0; border-top: 1px solid var(--line); }
+  .chamber article .popular { border-left: 2px solid var(--rose); padding: 4px 0 4px 14px; font-size: 16px; color: #e8d6dd; max-width: 62ch; }
+  .chamber article blockquote { margin: 0; font-size: 19px; font-style: italic; max-width: 58ch; }
+  .chamber article blockquote cite { display: block; font-style: normal; font-family: var(--mono); font-size: 12px; letter-spacing: .06em; color: var(--faint); margin-top: 10px; }
+  .chamber article .reflect { margin-top: 30px; padding: 20px; border: 1px solid rgba(241,212,154,.35); border-radius: 18px; background: rgba(241,212,154,.05); }
+  .chamber article .reflect p { font-size: 20px; font-style: italic; font-weight: 400; color: #fbecd0; margin-bottom: 10px; }
+  .chamber article .reflect small { display: block; color: var(--faint); font-size: 14px; margin-bottom: 14px; }
+  .close {
+    position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); right: 14px; z-index: 3; background: var(--glass); border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; cursor: pointer; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  }
+
+  /* Drawers */
+  .drawer { position: fixed; z-index: 12; top: 0; right: 0; bottom: 0; width: min(520px, 100vw); background: var(--glass-strong); border-left: 1px solid var(--line); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); overflow-y: auto; padding: 26px 26px 60px; padding-top: calc(26px + env(safe-area-inset-top, 0px)); }
+  .drawer h2 { font-family: var(--display); font-weight: 400; font-size: 36px; margin: 0 0 4px; }
+  .drawer .lede { font-style: italic; color: var(--muted); margin: 0 0 20px; }
+  .drawer ol.life { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 1px solid var(--line); }
+  .drawer ol.life li { position: relative; padding: 0 0 18px 16px; }
+  .drawer ol.life li::before { content: ''; position: absolute; left: -23px; top: 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 10px var(--violet); }
+  .drawer ol.life .y { font-family: var(--mono); font-size: 13px; color: var(--gold); letter-spacing: .06em; }
+  .drawer ol.life p { margin: 2px 0 0; font-weight: 300; }
+  .drawer h3 { font-family: var(--mono); font-weight: 500; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin: 26px 0 8px; }
+  .drawer dl { margin: 0; }
+  .drawer dt { font-family: var(--display); font-size: 20px; margin-top: 12px; }
+  .drawer dd { margin: 2px 0 0; font-weight: 300; color: var(--muted); }
+  .drawer a { color: var(--gold); }
+  .drawer .misq { border-left: 2px solid var(--rose); padding-left: 12px; margin: 12px 0; }
+  .drawer .misq q { font-style: italic; }
+  .drawer .misq p { margin: 4px 0 0; font-size: 15px; color: var(--muted); }
+  .drawer .close { position: sticky; float: right; top: 0; }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  @media (max-width: 760px) {
+    body { font-size: 16px; }
+    .chamber { grid-template-columns: 1fr; grid-template-rows: minmax(360px, 58svh) auto; overflow-y: auto; }
+    .chamber .stage { border-right: 0; border-bottom: 1px solid var(--line); min-height: 360px; }
+    .chamber article { overflow: visible; }
+    .chamber .howto { font-size: 15px; padding-right: 110px; }
+    #spiral { width: 96px; height: 96px; }
+    .spiral-cap { left: 116px; }
+    .hud-right { max-width: 62vw; gap: 6px; }
+    .chip, .ctl { padding: 6px 10px; font-size: 11px; }
+    .hit .lbl { font-size: 15px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .intro .how span { animation: none; }
+  }
+</style>
+
+<canvas id="bg" aria-hidden="true"></canvas>
+<canvas id="fg" aria-hidden="true"></canvas>
+<div id="hits" role="list" aria-label="Concepts on the map"></div>
+
+<div id="track">
+  <section class="intro" aria-labelledby="t">
+    <div>
+      <h1 id="t">Nekyia</h1>
+      <p class="sub">A descent into the psyche with C.&nbsp;G.&nbsp;Jung, from the surface of consciousness down to the Self.</p>
+      <div class="begin">
+        <button id="beginBtn" type="button">Begin the descent</button>
+        <button id="introSound" type="button">Turn on sound</button>
+      </div>
+      <p class="how"><span>Scroll to sink</span> &nbsp;·&nbsp; tap anything that moves</p>
+      <p class="credit">Nekyia is the old Greek word for a journey to the underworld. Jung used it for the descent into the unconscious.</p>
+    </div>
+  </section>
+</div>
+
+<div class="hud hud-left"><span class="chip" id="layerChip" aria-live="polite"><b>I</b><span>Consciousness</span></span></div>
+<div class="hud hud-right">
+  <button class="ctl" id="lifeBtn" type="button">Jung's life</button>
+  <button class="ctl" id="readBtn" type="button">Reading</button>
+  <button class="ctl" id="soundBtn" type="button" aria-pressed="false">Sound off</button>
+  <button class="ctl" id="stillBtn" type="button" aria-pressed="false" title="Stop the motion, for e-ink screens and quiet reading">Still</button>
+</div>
+<svg id="spiral" viewBox="-66 -66 132 132" role="img" aria-label="Individuation: your path so far"></svg>
+<div class="spiral-cap" id="spiralCap">Individuation</div>
+
+<div class="chamber" id="chamber" role="dialog" aria-modal="true" aria-labelledby="chTitle" hidden>
+  <button class="close" id="chClose" type="button">Close</button>
+  <div class="stage">
+    <p class="howto" id="chHow"></p>
+    <div class="canvas-wrap" id="chCanvasWrap"></div>
+    <div class="controls" id="chControls"></div>
+    <p class="caption" id="chCaption" aria-live="polite"></p>
+  </div>
+  <article id="chArticle"></article>
+</div>
+
+<aside class="drawer" id="lifeDrawer" role="dialog" aria-modal="true" aria-labelledby="lifeTitle" hidden></aside>
+<aside class="drawer" id="readDrawer" role="dialog" aria-modal="true" aria-labelledby="readTitle" hidden></aside>
+
+<script src="js/content.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/demos-upper.js"></script>
+<script src="js/demos-lower.js"></script>
+<script>N.boot();</script>
