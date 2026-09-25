@@ -856,7 +856,7 @@ void main(){
       html = `<section class="pp-intro"><h1>Nekyia</h1><p class="sub">A descent into the psyche with C.&nbsp;G.&nbsp;Jung, in four pages: from consciousness down to the Self.</p>
         <p>Each page is one layer of the psyche. Tap a concept to open it: a demonstration you can try, Jung's ideas and sources, and a question to sit with.</p>
         <p class="pp-quiet">Nekyia is the old Greek word for a journey to the underworld. Jung used it for the descent into the unconscious.</p>
-        <button class="btn big" type="button" data-go="0">Begin the descent</button></section>`;
+        <button class="btn big" type="button" data-go="0">Begin the descent</button><p class="pp-quiet"><a class="filmlink" href="https://claude.ai/artifact/RiZbHhRTyk5tiXSKTP4s6m" target="_blank" rel="noopener">Or watch the film, Night Sea Journey</a></p></section>`;
     } else {
       const P = PAGES[page];
       const cs = N.concepts.filter((c) => P.layers.includes(c.layer));

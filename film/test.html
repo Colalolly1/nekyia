@@ -1,0 +1,21 @@
+<style>html,body{margin:0;height:100%;background:#000}iframe{border:0;width:100%;height:100%;display:block}#out{position:fixed;left:0;top:0;color:#0f0;font:12px monospace;z-index:9;white-space:pre-wrap}</style>
+<canvas id="comp" style="position:fixed;left:0;top:0;z-index:0"></canvas><iframe id="f" style="position:relative;z-index:1;background:transparent" allowtransparency="true"></iframe><pre id="out"></pre>
+<script>
+const q=new URLSearchParams(location.search), f=document.getElementById('f'), out=document.getElementById('out');
+if(q.get('w')) f.style.width=q.get('w')+'px';
+f.src='index.html#test'+(q.get('eink')?'-eink':'');
+const errs=[];
+f.onload=()=>setTimeout(()=>{const w=f.contentWindow; w.addEventListener('error',e=>errs.push(e.message));
+ const ce=w.console.error.bind(w.console); w.console.error=(...a)=>{errs.push(a.map(String).join(' ')); ce(...a);};
+ const F=w.F; let now=w.performance.now()+1000;
+ if(q.get('mode')==='sweep'){
+   try{ F.begin(true); }catch(e){ errs.push('begin '+e.message); }
+   const t0=performance.now(); let frames=0;
+   for(let t=0;t<478;t+=0.25){ F.seek(t); now+=100; F.step(now); frames++; }
+   out.textContent='SWEEP frames='+frames+' ms/frame='+((performance.now()-t0)/frames).toFixed(2)+' ended='+F.ended+' errs='+errs.length+'\n'+errs.slice(0,6).join('\n');
+ } else {
+   const T=+q.get('t'); F.seek(Math.max(0,T-6));
+   let n=0; const iv=setInterval(()=>{ for(let k=0;k<3;k++){ now+=50; F.step(now);} if(++n>=40){ clearInterval(iv); if(q.get('comp')){ const d=w.document, gc=d.getElementById('gl'), fc=d.getElementById('fx'), c=document.getElementById('comp'); const W=w.innerWidth,H=w.innerHeight; c.width=W;c.height=H; c.style.width=W+'px'; c.style.height=H+'px'; const x=c.getContext('2d'); x.drawImage(gc,0,0,W,H); x.drawImage(fc,0,0,W,H); d.body.style.background='transparent'; d.documentElement.style.background='transparent'; gc.style.visibility='hidden'; fc.style.visibility='hidden'; } else if(q.get('probe')){ const d=w.document, gc=d.getElementById('gl'), fc=d.getElementById('fx'); const c=document.createElement('canvas'); c.width=40;c.height=40; const x=c.getContext('2d'); const avg=(cv)=>{x.clearRect(0,0,40,40); x.drawImage(cv,0,0,40,40); const a=x.getImageData(0,0,40,40).data; let s=0; for(let i=0;i<a.length;i+=4) s+=a[i]+a[i+1]+a[i+2]; return (s/(a.length/4)/3).toFixed(1);}; out.textContent='t='+F.t.toFixed(1)+' gl='+gc.width+'x'+gc.height+' avg='+avg(gc)+' fx='+fc.width+'x'+fc.height+' avg='+avg(fc)+' errs='+errs.join('|'); } else if(errs.length) out.textContent='ERR '+errs.join(' | '); } },15);
+ }
+},200);
+</script>

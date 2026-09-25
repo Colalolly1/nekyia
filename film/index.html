@@ -1,0 +1,784 @@
+<meta charset="utf-8">
+<title>Night Sea Journey</title>
+<meta name="description" content="An eight-minute autonomous film: a descent through the psyche with C. G. Jung, from the lamp of consciousness to the Self and back into the day.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Spectral:ital,wght@0,300;0,400;1,300;1,400&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  /* One deliberate world: night water. Colours are painted explicitly. */
+  html, body { height: 100%; }
+  body { margin: 0; background: #05030a; color: #f1eaff; overflow: hidden; font-family: 'Spectral', Georgia, serif; -webkit-font-smoothing: antialiased; }
+  [hidden] { display: none !important; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #gl { z-index: 0; }
+  #fx { z-index: 1; }
+  body.idle { cursor: none; }
+
+  #words { position: fixed; z-index: 3; left: 50%; bottom: 13vh; transform: translateX(-50%); width: min(780px, calc(100vw - 40px)); height: 40vh; pointer-events: none; }
+  .cue { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; opacity: 0; filter: blur(7px); transition: opacity 2.8s ease, filter 2.8s ease; }
+  .cue.on { opacity: 1; filter: blur(0); }
+  .cue .q { margin: 0; font-style: italic; font-weight: 300; font-size: clamp(21px, 2.7vw, 33px); line-height: 1.42; text-wrap: balance; color: #f6f0ff; text-shadow: 0 0 22px rgba(3, 1, 8, .9), 0 0 3px rgba(3, 1, 8, .8); }
+  .cue cite { display: block; margin-top: 16px; font-style: normal; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: rgba(241, 234, 255, .66); text-shadow: 0 0 12px rgba(3, 1, 8, .9); }
+  .cue.title { bottom: 12vh; }
+  .cue.title .q { font-family: 'Marcellus', Georgia, serif; font-style: normal; font-size: clamp(46px, 8.5vw, 104px); letter-spacing: .07em; line-height: 1; }
+
+  #labels { position: fixed; z-index: 3; top: 11vh; left: 0; right: 0; height: 2em; pointer-events: none; }
+  .lab { position: absolute; left: 0; right: 0; text-align: center; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: .5em; text-transform: uppercase; color: rgba(241, 234, 255, .72); opacity: 0; transition: opacity 3s ease; padding-left: .5em; text-shadow: 0 0 14px rgba(3, 1, 8, .9); }
+  .lab.on { opacity: 1; }
+
+  #bar { position: fixed; z-index: 4; left: 0; bottom: 0; height: 2px; width: 100%; background: rgba(241, 234, 255, .06); }
+  #bar i { display: block; height: 100%; width: 0; background: rgba(255, 222, 170, .45); }
+  #pausedNote { position: fixed; z-index: 4; top: 22px; left: 0; right: 0; text-align: center; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: rgba(241, 234, 255, .8); }
+
+  .panel { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse at 50% 60%, #1a1030 0%, #07040f 62%, #030207 100%); text-align: center; }
+  .panel .in { max-width: 620px; }
+  .kicker { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: .4em; text-transform: uppercase; color: rgba(255, 222, 170, .8); margin: 0 0 18px; padding-left: .4em; }
+  .panel h1, .panel h2 { font-family: 'Marcellus', Georgia, serif; font-weight: 400; font-size: clamp(44px, 9vw, 92px); letter-spacing: .06em; line-height: 1.02; margin: 0 0 20px; text-wrap: balance; }
+  .panel p.sub { font-style: italic; font-weight: 300; font-size: clamp(18px, 2.4vw, 22px); line-height: 1.55; color: #ddd2f0; margin: 0 auto 32px; max-width: 34em; text-wrap: balance; }
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .btn { font: 400 17px 'Spectral', Georgia, serif; color: #f1eaff; background: transparent; border: 1px solid rgba(255, 226, 180, .5); border-radius: 999px; padding: 12px 24px; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn:hover { border-color: rgba(255, 226, 180, .9); }
+  .btn.solid { background: #f3dcb0; color: #140b1c; border-color: #f3dcb0; }
+  .btn:focus-visible { outline: 2px solid #f3dcb0; outline-offset: 3px; }
+  .note { margin-top: 26px; font-size: 15px; color: rgba(221, 210, 240, .72); line-height: 1.6; }
+  .sources { margin: 30px auto 0; max-width: 36em; font-size: 13px; line-height: 1.7; color: rgba(221, 210, 240, .6); text-align: left; }
+  .sources b { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 400; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: rgba(255, 222, 170, .7); display: block; margin-bottom: 6px; }
+  .panel { transition: opacity 1.6s ease; }
+  body.eink .cue, body.eink .lab, body.eink .panel { transition: none; filter: none; }
+  body.eink .cue .q { font-weight: 400; font-size: clamp(23px, 3vw, 34px); }
+  body.eink .cue cite, body.eink .lab { color: #ffffff; }
+  body.eink #bar { display: none; }
+  .panel.leaving { opacity: 0; pointer-events: none; }
+</style>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="labels" aria-hidden="true"></div>
+<div id="words" aria-live="polite"></div>
+<div id="bar" aria-hidden="true"><i id="barFill"></i></div>
+<div id="pausedNote" hidden>Paused · tap to continue</div>
+
+<section class="panel" id="gate" aria-labelledby="gateTitle">
+  <div class="in">
+    <p class="kicker">A film in eight minutes</p>
+    <h1 id="gateTitle">Night Sea Journey</h1>
+    <p class="sub">A descent through the psyche with C.&nbsp;G.&nbsp;Jung: from the small lamp of consciousness, down past the forgotten and the shadow, through the ancient forms, to the Self, and back up into the day.</p>
+    <div class="btns">
+      <button class="btn solid" id="goSound" type="button">Begin, with sound</button>
+      <button class="btn" id="goQuiet" type="button">Begin in silence</button>
+    </div>
+    <p class="note" id="gateNote">Best in the dark, with headphones. Nothing to do but watch. Tap to pause; the arrow keys skip.</p>
+  </div>
+</section>
+
+<section class="panel" id="end" hidden aria-labelledby="endTitle">
+  <div class="in">
+    <p class="kicker">The end</p>
+    <h2 id="endTitle">Night Sea Journey</h2>
+    <div class="btns">
+      <button class="btn solid" id="again" type="button">Watch again</button>
+      <a class="btn" href="https://claude.ai/artifact/L93tsZ7erwriy2SaxwD5uD" target="_blank" rel="noopener">Walk the map in Nekyia</a>
+    </div>
+    <div class="sources">
+      <b>Words in the film</b>
+      Jung, “The Philosophical Tree” (1945), Collected Works vol. 13, para. 335.<br>
+      Jung, “Archetypes of the Collective Unconscious” (1934/1954), CW 9i.<br>
+      Goethe, Faust Part Two, as quoted by Jung on the mandala in Memories, Dreams, Reflections (1962), which also gives “And that is the self, the wholeness of the personality” and the closing line.<br>
+      The night sea journey: Jung, Symbols of Transformation, CW 5. Nekyia: Jung, “Picasso” and “Ulysses: A Monologue” (1932), CW 15.<br>
+      Unattributed lines are the film’s own words, not Jung’s. Memories, Dreams, Reflections was written with and edited by Aniela Jaffé.
+    </div>
+  </div>
+</section>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const sstep = (a, b, x) => { const k = clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
+  const win = (t, a, b, fi = 3, fo = 3) => sstep(a, a + fi, t) * (1 - sstep(b - fo, b, t));
+  const TAU = Math.PI * 2;
+  const EINK = /HiBreak|Bigme|Kompakt|Mudita|Boox|Onyx|reMarkable|Kindle/i.test(navigator.userAgent) || location.hash.includes('eink');
+  if (EINK) document.body.classList.add('eink');
+  function track(keys) {
+    return (t) => {
+      if (t <= keys[0][0]) return keys[0][1];
+      for (let i = 1; i < keys.length; i++) {
+        if (t <= keys[i][0]) {
+          const [t0, v0] = keys[i - 1], [t1, v1] = keys[i];
+          const u = (t - t0) / (t1 - t0), e = u * u * u * (u * (u * 6 - 15) + 10);
+          return v0 + (v1 - v0) * e;
+        }
+      }
+      return keys[keys.length - 1][1];
+    };
+  }
+  function rng(seed) {
+    return () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let x = Math.imul(seed ^ (seed >>> 15), 1 | seed); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  /* ───────────── The score: everything is a function of time ───────────── */
+  const TOTAL = 480;
+  const SINK = track([[0, 0], [30, 0], [66, .2], [104, .32], [150, .46], [205, .62], [255, .78], [292, .95], [370, 1], [438, .1], [452, 0], [480, 0]]);
+  const CORE = track([[0, 0], [294, 0], [334, 1], [364, 1], [378, .12], [440, .04], [452, 0]]);
+  const SUN = track([[0, 0], [436, 0], [470, 1], [480, 1]]);
+  const FADE = track([[0, 1], [5, 0], [464, 0], [476, 1], [480, 1]]);
+  const beatPhase = (t) => ((((t - 238) % 1.25) + 1.25) % 1.25) / 1.25;
+  function pulseAt(t) {
+    const env = win(t, 238, 292, 6, 10); if (env <= 0) return 0;
+    const ph = beatPhase(t);
+    return env * (Math.exp(-ph * 16) + (ph > 0.22 ? 0.6 * Math.exp(-(ph - 0.22) * 16) : 0));
+  }
+
+  const CUES = [
+    { a: 7, b: 19, k: 'title', q: 'Night Sea Journey' },
+    { a: 20, b: 34, q: 'In the Odyssey, Odysseus goes down among the dead. The Greeks called that journey the nekyia, and Jung borrowed the word for the descent into the unconscious.', c: 'Jung, “Picasso” and “Ulysses: A Monologue” (1932), CW 15' },
+    { a: 37, b: 50, q: 'This small lamp is what you know of yourself. Everything else lies below it.' },
+    { a: 52, b: 64, q: 'The clothes you were handed no longer fit. Somewhere below are your own.' },
+    { a: 84, b: 96, q: 'There are rooms in this house you have never been in.' },
+    { a: 97, b: 107, q: 'A door you never noticed. A stair going down.' },
+    { a: 110, b: 121, q: 'Something walks with you that you would rather not be.' },
+    { a: 121, b: 131, q: 'You have tried to fight it. Striking it changes nothing.' },
+    { a: 132, b: 142, q: 'Stop fighting. Let it come in.' },
+    { a: 143, b: 157, q: 'One does not become enlightened by imagining figures of light, but by making the darkness conscious.', c: 'Jung, “The Philosophical Tree” (1945), CW 13, para. 335' },
+    { a: 160, b: 173, q: 'What you kept putting out of the house has come down with you. Let it lead.' },
+    { a: 180, b: 194, q: 'Below the personal lies what no one acquires: the shapes every human mind is born able to make.' },
+    { a: 197, b: 211, q: 'At a threshold, someone is smiling at you as if she knows the way. Ask what she is, and she only walks on ahead.' },
+    { a: 214, b: 227, q: 'Someone older, and calm, nods to you: you can let this happen.' },
+    { a: 243, b: 259, q: 'The sun goes down into the sea, is swallowed by the great fish, and travels through the dark toward the east.', c: 'The night sea journey · Jung, Symbols of Transformation, CW 5' },
+    { a: 266, b: 278, q: 'A small light has latched on to you. Don’t throw it off. It is what comes next.' },
+    { a: 281, b: 294, q: 'In all chaos there is a cosmos, in all disorder a secret order.', c: 'Jung, “Archetypes of the Collective Unconscious” (1934/1954), CW 9i' },
+    { a: 314, b: 330, q: 'Formation, Transformation, Eternal Mind’s eternal recreation.', c: 'Goethe, Faust II · quoted by Jung on the mandala, Memories, Dreams, Reflections' },
+    { a: 332, b: 348, q: 'And that is the self, the wholeness of the personality.', c: 'Jung, Memories, Dreams, Reflections (1962)' },
+    { a: 351, b: 366, q: 'Everything you met on the way down is here, in its place.' },
+    { a: 392, b: 406, q: 'What was found below is carried back up.' },
+    { a: 411, b: 426, q: 'You are not going back to where you were. You are going home.' },
+    { a: 448, b: 463, q: 'As far as we can discern, the sole purpose of human existence is to kindle a light in the darkness of mere being.', c: 'Jung, Memories, Dreams, Reflections (1962)' },
+  ];
+  const LABELS = [
+    { a: 70, b: 86, q: 'The personal unconscious' },
+    { a: 176, b: 192, q: 'The collective unconscious' },
+    { a: 296, b: 312, q: 'The Self' },
+    { a: 372, b: 388, q: 'The return' },
+  ];
+  for (const c of CUES) {
+    const el = document.createElement('div'); el.className = 'cue' + (c.k ? ' ' + c.k : '');
+    el.innerHTML = `<p class="q"></p>${c.c ? '<cite></cite>' : ''}`;
+    el.querySelector('.q').textContent = c.q; if (c.c) el.querySelector('cite').textContent = c.c;
+    $('words').appendChild(el); c.el = el; c.on = false;
+  }
+  for (const c of LABELS) {
+    const el = document.createElement('div'); el.className = 'lab'; el.textContent = c.q;
+    $('labels').appendChild(el); c.el = el; c.on = false;
+  }
+  function renderWords(t) {
+    for (const list of [CUES, LABELS]) for (const c of list) {
+      const on = t >= c.a && t < c.b;
+      if (on !== c.on) { c.on = on; c.el.classList.toggle('on', on); }
+    }
+  }
+
+  /* ───────────── WebGL: the water, the dark, the light ───────────── */
+  const glc = $('gl');
+  let g = null, U_ = {};
+  try { g = glc.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: true }); } catch (e) { g = null; }
+  const FS = `
+precision highp float;
+uniform vec2 R; uniform float T,S,SUN,CORE,PULSE,FADE,WL,GRAIN;
+float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);
+ return mix(mix(hash(i),hash(i+vec2(1.,0.)),u.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.02+vec2(3.1,1.7);a*=.5;}return v;}
+vec3 deep(float s){
+ vec3 c=mix(vec3(.12,.19,.29),vec3(.06,.07,.2),smoothstep(.06,.3,s));
+ c=mix(c,vec3(.045,.02,.1),smoothstep(.3,.6,s));
+ c=mix(c,vec3(.01,.005,.018),smoothstep(.6,.92,s));
+ return c;}
+void main(){
+ vec2 uv=gl_FragCoord.xy/R; vec2 p=(gl_FragCoord.xy-.5*R)/R.y;
+ float hz=.46, hzp=hz-.5;
+ // sky and palettes: dusk at the start, dawn at the end
+ vec3 top=mix(vec3(.045,.03,.11),vec3(.2,.28,.48),SUN);
+ vec3 mid=mix(vec3(.3,.16,.33),vec3(.66,.56,.6),SUN);
+ vec3 hzc=mix(vec3(.92,.5,.37),vec3(1.,.8,.52),SUN);
+ float sunx=-.22*clamp(R.x/R.y,.45,1.); float suny=hzp+mix(-.09,.12,SUN);
+ vec3 above;
+ if(uv.y>hz){
+  float y=(uv.y-hz)/(1.-hz);
+  above=mix(hzc,mid,smoothstep(0.,.32,y)); above=mix(above,top,smoothstep(.28,1.,y));
+  float cl=fbm(vec2(p.x*1.3+T*.004,y*4.5));
+  above=mix(above,above*1.18+vec3(.06,.02,.05)*(1.-SUN),smoothstep(.5,.78,cl)*(1.-y)*.7);
+  vec2 sp=floor(gl_FragCoord.xy/1.5);
+  float st=step(.9965,hash(sp))*smoothstep(.25,.9,y)*(1.-SUN);
+  above+=st*(.55+.45*sin(T*1.7+hash(sp+1.)*40.))*.9;
+  float sd=length(p-vec2(sunx,suny));
+  above+=vec3(1.,.75,.45)*exp(-sd*sd*22.)*.55*SUN+vec3(1.,.93,.75)*smoothstep(.052,.046,sd)*SUN;
+ } else {
+  float dy=hz-uv.y;
+  above=mix(hzc*.72,mid*.32,smoothstep(0.,.34,dy));
+  float w=noise(vec2(p.x*2.2/(dy+.05),1./(dy+.05)*.55-T*.22));
+  above*=.72+.55*w;
+  float gl=exp(-abs(p.x-sunx)*(7.+dy*18.))*pow(w,3.)*SUN*1.6;
+  above+=hzc*gl;
+  above*=1.-dy*.9;
+ }
+ // under the water
+ float s=S;
+ vec3 un=deep(s);
+ float f=fbm(p*1.5+vec2(fbm(p*.7+T*.012)*1.2,T*.018));
+ un*=.68+.72*f;
+ un*=mix(1.,.55+.9*uv.y,.55);
+ float shaftAmt=1.-smoothstep(.1,.5,s);
+ vec2 q=p; q.x+=q.y*.38;
+ float sh=pow(max(0.,sin(q.x*8.+sin(q.x*2.7+T*.09)*1.6+T*.045)),6.)*.6+pow(max(0.,sin(q.x*21.-T*.06)),12.)*.35;
+ sh*=smoothstep(-.7,.5,p.y)*(.4+fbm(vec2(q.x*4.,T*.05)));
+ un+=vec3(.55,.62,.82)*sh*shaftAmt*.32;
+ float cz=fbm(p*3.6+vec2(T*.11,-T*.07));
+ float ca=pow(1.-abs(sin(cz*9.)),6.);
+ float nearTop=exp(-max(0.,WL-uv.y)*5.);
+ un+=(vec3(.5,.66,.82)*ca*.3+vec3(.25,.35,.48)*.35)*nearTop*(1.-smoothstep(.1,.3,s));
+ un+=vec3(.45,.32,.85)*smoothstep(.8,.87,fbm(p*6.+T*.01))*smoothstep(.45,.7,s)*(1.-CORE)*.22;
+ float d=length(p);
+ un+=PULSE*vec3(.42,.07,.16)*exp(-d*d*2.2)*.55;
+ float ang=atan(p.y,p.x);
+ un+=CORE*(vec3(1.,.78,.42)*exp(-d*d*10.)*1.05+vec3(.9,.52,.26)*exp(-d*2.8)*.28);
+ un+=CORE*vec3(1.,.82,.5)*pow(max(0.,sin(ang*12.+T*.08)),22.)*exp(-d*2.2)*.18;
+ // the waterline
+ float wlw=WL+.012*sin(p.x*7.+T*1.1)+.006*sin(p.x*17.-T*1.7);
+ vec3 col=uv.y<wlw?un:above;
+ col+=vec3(.85,.9,1.)*exp(-abs(uv.y-wlw)*R.y*.12)*.4*step(-.05,WL)*step(WL,1.05);
+ col+=(hash(gl_FragCoord.xy+fract(T*43.1))-.5)*.035*GRAIN;
+ vec2 v=p*vec2(.85,1.15);
+ col*=1.-.6*dot(v,v);
+ col*=1.-FADE;
+ gl_FragColor=vec4(max(col,0.),1.);
+}`;
+  if (g) {
+    const sh = (type, src) => { const s = g.createShader(type); g.shaderSource(s, src); g.compileShader(s); if (!g.getShaderParameter(s, g.COMPILE_STATUS)) throw new Error(g.getShaderInfoLog(s)); return s; };
+    try {
+      const pr = g.createProgram();
+      g.attachShader(pr, sh(g.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'));
+      g.attachShader(pr, sh(g.FRAGMENT_SHADER, FS));
+      g.linkProgram(pr); if (!g.getProgramParameter(pr, g.LINK_STATUS)) throw new Error(g.getProgramInfoLog(pr));
+      g.useProgram(pr);
+      const b = g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER, b);
+      g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), g.STATIC_DRAW);
+      const loc = g.getAttribLocation(pr, 'a'); g.enableVertexAttribArray(loc); g.vertexAttribPointer(loc, 2, g.FLOAT, false, 0, 0);
+      for (const n of ['R', 'T', 'S', 'SUN', 'CORE', 'PULSE', 'FADE', 'WL', 'GRAIN']) U_[n] = g.getUniformLocation(pr, n);
+    } catch (e) { console.error('shader', e); g = null; }
+  }
+
+  /* ───────────── Canvas 2D: forms made of light ───────────── */
+  const fx = $('fx'), c2 = fx.getContext('2d');
+  let W = 1, H = 1, U = 1;
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    W = innerWidth; H = innerHeight; U = Math.min(W, H);
+    fx.width = Math.max(1, W * dpr | 0); fx.height = Math.max(1, H * dpr | 0);
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const gs = 0.55 * dpr;
+    glc.width = Math.max(2, W * gs | 0); glc.height = Math.max(2, H * gs | 0);
+    if (g) g.viewport(0, 0, glc.width, glc.height);
+  }
+  resize();
+  addEventListener('resize', resize);
+
+  function sprite(r, gg, b) {
+    const s = document.createElement('canvas'); s.width = s.height = 64;
+    const x = s.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, `rgba(${r},${gg},${b},1)`); gr.addColorStop(.22, `rgba(${r},${gg},${b},.5)`); gr.addColorStop(1, `rgba(${r},${gg},${b},0)`);
+    x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return s;
+  }
+  const SP = { pale: sprite(238, 230, 255), violet: sprite(176, 148, 255), gold: sprite(255, 212, 146), teal: sprite(150, 214, 232), rose: sprite(255, 150, 186), dark: sprite(0, 0, 0) };
+
+  function poly(pts) {
+    const seg = []; let L = 0;
+    for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); seg.push([a, b, L, l]); L += l; }
+    return { seg, L };
+  }
+  function onPoly(P, u) {
+    let d = u * P.L;
+    for (const [a, b, s, l] of P.seg) if (d <= s + l) { const k = l ? (d - s) / l : 0; return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; }
+    const z = P.seg[P.seg.length - 1]; return [z[1][0], z[1][1]];
+  }
+
+  // Shapes return positions in units of the short screen side, centred, y down.
+  const HOUSE = [poly([[-.22, .33], [-.22, .03], [0, -.17], [.22, .03], [.22, .33], [-.22, .33]]), poly([[-.05, .33], [-.05, .18], [.05, .18], [.05, .33]]), poly([[-.22, .03], [.22, .03]])];
+  function house(p) {
+    if (p.r3 < .1) return [.12 + (p.r1 - .5) * .06, .1 + (p.r2 - .5) * .05];
+    const P = p.r3 < .7 ? HOUSE[0] : p.r3 < .85 ? HOUSE[1] : HOUSE[2];
+    const [x, y] = onPoly(P, p.r1); return [x + (p.r2 - .5) * .012, y + (((p.r2 * 7) % 1) - .5) * .012];
+  }
+  const ARCH = (() => { const a = [[-.13, .34], [-.13, -.04]]; for (let k = 0; k <= 14; k++) { const t = Math.PI + (k / 14) * Math.PI; a.push([Math.cos(t) * .13, -.04 + Math.sin(t) * .13]); } a.push([.13, .34]); return poly(a); })();
+  const STEPS = [0, 1, 2, 3].map((k) => poly([[-.1 + k * .014, .12 + k * .065], [.1 - k * .014, .12 + k * .065]]));
+  function stair(p) {
+    if (p.r3 < .6) { const [x, y] = onPoly(ARCH, p.r1); return [x + (p.r2 - .5) * .01, y]; }
+    const [x, y] = onPoly(STEPS[Math.min(3, Math.floor((p.r3 - .6) / .1))], p.r1); return [x, y + (p.r2 - .5) * .008];
+  }
+  const lunge = (t) => .07 * Math.pow(Math.max(0, Math.sin((t - 116) * 2.6)), 3) * win(t, 115, 126, 1, 2);
+  const figBase = (t) => [-.03 + Math.sin(t * .25) * .045, .02];
+  const figC = (t) => { const [x, y] = figBase(t); return [x + lunge(t), y]; };
+  function figurePt(p, cx, cy, sc, open = 0) {
+    if (p.r3 < .2) { const a = p.r1 * TAU, rr = Math.sqrt(p.r2) * .062; return [cx + Math.cos(a) * rr * sc, cy + (-.24 + Math.sin(a) * rr) * sc]; }
+    if (p.r3 < .32) {
+      const side = p.r1 < .5 ? -1 : 1, v = (p.r1 * 2) % 1, ang = lerp(.14, 1.25, open), L = .25;
+      return [cx + (side * .095 + side * Math.sin(ang) * v * L) * sc, cy + (-.13 + Math.cos(ang) * v * L) * sc];
+    }
+    const v = p.r1, yy = -.16 + v * .46;
+    const wid = v < .12 ? lerp(.05, .11, v / .12) : lerp(.11, .065, (v - .12) / .88);
+    return [cx + (p.r2 * 2 - 1) * wid * sc, cy + yy * sc];
+  }
+  function figure(p, t) { const [cx, cy] = figC(t); return figurePt(p, cx, cy, 1.1, sstep(127, 134, t)); }
+  function shadowC(t) {
+    const [bx, by] = figBase(t - 1.6);
+    const sh = lunge(t) > .01 ? Math.sin(t * 38) * .012 : 0;
+    const m = sstep(132, 144, t), [fx0, fy0] = figC(t);
+    return [lerp(bx + .2 + sh, fx0, m), lerp(by + .03, fy0, m)];
+  }
+  function creature(p, t) {
+    const half = W / U / 2, cx = lerp(half + .3, -.05, sstep(152, 170, t)), cy = .1 + sstep(168, 180, t) * .45, st = t * 3.2;
+    if (p.r3 < .5) { const a = p.r1 * TAU, r = Math.sqrt(p.r2); return [cx + Math.cos(a) * r * .15, cy + Math.sin(a) * r * .055 + Math.sin(st * 2) * .004]; }
+    if (p.r3 < .68) { const u = p.r1, v = (p.r2 - .5) * (1 - u); return [cx - .13 - u * .12, cy - .005 + v * .09 + u * .02]; }
+    if (p.r3 < .92) { const k = Math.floor((p.r3 - .68) / .24 * 4) % 4, ph = st + (k % 2 ? Math.PI : 0), v = p.r1; return [cx + [-.1, -.06, .06, .1][k] + Math.sin(ph) * .025 * v, cy + .04 + v * .08]; }
+    return [cx + .15 + p.r1 * .05, cy - .02 - p.r1 * .02];
+  }
+  function anima(p, t) {
+    const half = W / U / 2, cx = .12 + sstep(205, 215, t) * (half + .25), sway = Math.sin(t * .6) * .012;
+    if (p.r3 < .14) { const a = p.r1 * TAU, r = Math.sqrt(p.r2) * .048; return [cx + Math.cos(a) * r, -.3 + Math.sin(a) * r]; }
+    if (p.r3 < .34) { const v = p.r1; return [cx + .03 + v * .05 + Math.sin(v * 5 + t * .8) * .02 + (p.r2 - .5) * .03, -.3 + v * .3]; }
+    const v = p.r1, w = lerp(.05, .17, v); return [cx + (p.r2 * 2 - 1) * w + sway * v, -.24 + v * .56];
+  }
+  function elder(p, t) {
+    const cx = -.08, cy = .02, nod = Math.sin(clamp((t - 218) / 2.2, 0, 1) * Math.PI) * .03;
+    if (p.r3 < .14) { const a = p.r1 * TAU, r = Math.sqrt(p.r2) * .055; return [cx + Math.cos(a) * r, cy - .27 + nod + Math.sin(a) * r]; }
+    if (p.r3 < .22) { const u = p.r1, v = (p.r2 - .5) * (1 - u); return [cx + v * .07, cy - .22 + nod + u * .1]; }
+    if (p.r3 < .72) { const v = p.r1, w = lerp(.07, .14, v); return [cx + (p.r2 * 2 - 1) * w, cy - .2 + v * .5]; }
+    if (p.r3 < .9) return [cx + .2 + (p.r2 - .5) * .008, cy - .3 + p.r1 * .62];
+    const a = p.r1 * TAU, r = Math.sqrt(p.r2) * .035; return [cx + .2 + Math.cos(a) * r, cy - .34 + Math.sin(a) * r];
+  }
+  const whaleHead = (t) => { const half = W / U / 2; return -half - .15 + (t - 226) * (half + .15) / 14; };
+  function whale(p, t) {
+    const hx = whaleHead(t), L = 1.3, cy = .12 + Math.sin(t * .3) * .03;
+    if (p.r3 < .2) {
+      const sx = Math.max(0, hx - .28), sy = lerp(-.62, cy, sstep(226, 240, t)), a = p.r1 * TAU, r = Math.sqrt(p.r2) * .08;
+      return [sx + Math.cos(a) * r, sy + Math.sin(a) * r];
+    }
+    if (p.r3 > .93) { const side = p.r1 < .5 ? -1 : 1, v = (p.r1 * 2) % 1; return [hx - L - .02 - v * .1, cy + side * (.015 + v * .09) + (p.r2 - .5) * .02]; }
+    const u = p.r1, x = hx - L + u * L, h = .16 * Math.pow(Math.sin(Math.PI * (.12 + .8 * u)), .7);
+    const y = p.r2 < .5 ? -(p.r2 * 2) * h : ((p.r2 - .5) * 2) * h * .75;
+    return [x, cy + y + Math.sin(u * 4 - t * 1.2) * .015];
+  }
+  function child(p, t) {
+    const k = sstep(262, 272, t), sc = lerp(.35, 1, k), cx = 0, cy = lerp(-.22, .08, k) + Math.sin(t * .9) * .01;
+    if (p.r3 < .3) { const a = p.r1 * TAU, r = Math.sqrt(p.r2) * .03; return [cx + Math.cos(a) * r * sc, cy + Math.sin(a) * r * sc]; }
+    const a = p.r1 * TAU + t * (.3 + p.r2 * .4), r = .1 + p.r2 * .12; return [cx + Math.cos(a) * r * sc, cy + Math.sin(a) * r * .9 * sc];
+  }
+  function vortex(p, t) {
+    const pr = sstep(278, 294, t), r = (.12 + .6 * p.r1) * (1 - pr * .97);
+    const a = p.r2 * TAU + t * (.35 + .5 / (r + .12));
+    return [Math.cos(a) * r, Math.sin(a) * r * .82];
+  }
+  function ring(p, t) { const r = lerp(.01, .07, sstep(290, 298, t)) + (p.r2 - .5) * .008, a = p.r1 * TAU + t * .2; return [Math.cos(a) * r, Math.sin(a) * r]; }
+  function point(p) { return [(p.r1 - .5) * .012, (p.r2 - .5) * .012]; }
+  function mandalaP(p, t) {
+    const k = p.r3 < .33 ? 0 : p.r3 < .66 ? 1 : 2, R0 = [.12, .22, .33][k];
+    const rot = t * .05 * (k % 2 ? 1 : -1), a = p.r1 * TAU + rot;
+    const r = R0 + .028 * Math.cos(8 * (a - rot)) * (k === 2 ? 1 : .4) + (p.r2 - .5) * .01;
+    return [Math.cos(a) * r, Math.sin(a) * r];
+  }
+  function trail(p, t) {
+    const u = p.r1;
+    return [Math.sin(u * 14 - t * 2.4 + p.r2 * .6) * .06 * (.2 + u), -.05 + u * .78 + (p.r2 - .5) * .02];
+  }
+  const SHAPES = [
+    [(t) => win(t, 78, 96, 4, 4), house],
+    [(t) => win(t, 94, 108, 4, 4), stair],
+    [(t) => win(t, 104, 158, 4, 6), figure],
+    [(t) => win(t, 152, 182, 4, 5), creature],
+    [(t) => win(t, 192, 216, 4, 4), anima],
+    [(t) => win(t, 210, 232, 4, 4), elder],
+    [(t) => win(t, 224, 268, 4, 5), whale],
+    [(t) => win(t, 262, 284, 4, 4), child],
+    [(t) => win(t, 276, 296, 4, 3), vortex],
+    [(t) => win(t, 290, 304, 3, 4), ring],
+    [(t) => win(t, 298, 370, 6, 4), mandalaP],
+    [(t) => win(t, 366, 384, 3, 4), point],
+    [(t) => win(t, 380, 446, 4, 8), trail],
+  ];
+
+  const R = rng(1961);
+  const NP = 900;
+  const P = Array.from({ length: NP }, () => ({ x: (R() - .5) * 1.6, y: (R() - .5) * 1.2, r1: R(), r2: R(), r3: R(), s: .6 + R() * .9, tw: R() * TAU, str: 0 }));
+  const SHB = Array.from({ length: 26 }, () => ({ r1: R(), r2: R(), r3: R(), ph: R() * TAU }));
+  const MOTES = Array.from({ length: 170 }, () => ({ x: R(), y: R(), z: .25 + R() * .75, ph: R() * TAU }));
+  const BUB = Array.from({ length: 46 }, () => ({ x: R(), y: 1 + R() * 1.5, r: 1 + R() * 4, v: .08 + R() * .15, ph: R() * TAU }));
+  const ROOTS = (() => {
+    const r = rng(7), xs = [.12, .3, .5, .7, .88];
+    return xs.map((fx0, i) => {
+      const seed = r() * 10, pts = [];
+      for (let k = 0; k <= 30; k++) { const v = k / 30, e = v * v * (3 - 2 * v); pts.push([lerp(fx0, .5, e) + Math.sin(v * 8 + seed) * .035 * (1 - v), lerp(.24, .84, v)]); }
+      const br = [];
+      for (let j = 0; j < 3; j++) {
+        const k0 = Math.floor((.2 + r() * .5) * 30), tgt = xs[clamp(i + (r() < .5 ? -1 : 1), 0, 4)], bp = [pts[k0]], drop = .2 + r() * .15;
+        for (let k = 1; k <= 12; k++) { const v = k / 12; bp.push([lerp(pts[k0][0], lerp(tgt, .5, .5), v) + Math.sin(v * 6 + j) * .02, pts[k0][1] + v * drop]); }
+        br.push({ k0, bp });
+      }
+      return { pts, br, fx: fx0 };
+    });
+  })();
+
+  function tintFor(p, t) {
+    const gold = sstep(290, 318, t) * (1 - sstep(446, 470, t));
+    if (p.r3 < gold * .9) return SP.gold;
+    if (win(t, 78, 96, 4, 4) > .3 && p.r3 < .1) return SP.gold;
+    if (win(t, 140, 158, 2, 4) > .3 && p.r3 > .5 && p.r3 < .8) return SP.rose;
+    if (win(t, 194, 214, 4, 4) > .3) return p.r3 < .5 ? SP.rose : SP.pale;
+    if (win(t, 212, 230, 4, 4) > .3 && p.r3 > .9) return SP.gold;
+    if (win(t, 226, 266, 4, 4) > .3 && p.r3 < .2) return SP.gold;
+    if (win(t, 264, 282, 4, 4) > .3 && p.r3 < .3) return SP.gold;
+    if (t < 156) return p.r3 > .6 ? SP.violet : SP.pale;
+    return p.r3 > .45 ? SP.violet : p.r3 > .2 ? SP.teal : SP.pale;
+  }
+  function stepParticles(t, dt) {
+    const ws = SHAPES.map(([w]) => w(t));
+    const drift = .02;
+    for (const p of P) {
+      let tx = 0, ty = 0, sw = 0;
+      for (let i = 0; i < SHAPES.length; i++) { const w = ws[i]; if (w > .001) { const [x, y] = SHAPES[i][1](p, t); tx += x * w; ty += y * w; sw += w; } }
+      const free = 1 - Math.min(1, sw) * .85;
+      p.x += Math.sin(p.y * 3 + t * .2 + p.r2 * 9) * drift * dt * free;
+      p.y += Math.cos(p.x * 3 + t * .17 + p.r1 * 9) * drift * dt * free;
+      if (sw > 0) { tx /= sw; ty /= sw; const k = (1 - Math.exp(-dt * .9)) * Math.min(1, sw); p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; }
+      p.str = Math.min(1, sw);
+      const hx = W / U / 2 + .1;
+      if (p.x > hx) p.x -= hx * 2; else if (p.x < -hx) p.x += hx * 2;
+      if (p.y > .62) p.y -= 1.24; else if (p.y < -.62) p.y += 1.24;
+    }
+  }
+  function drawParticles(t) {
+    const vis = win(t, 66, 452, 8, 10) * (1 - .6 * win(t, 174, 196, 4, 6));
+    if (vis <= .01) return;
+    c2.globalCompositeOperation = 'lighter';
+    // an aura behind whatever form the light has gathered into
+    let cx = 0, cy = 0, cw = 0;
+    for (const p of P) if (p.str > .5) { cx += p.x; cy += p.y; cw++; }
+    if (cw > 40 && !EINK) {
+      cx /= cw; cy /= cw; const ar = U * .42;
+      c2.globalAlpha = vis * .16 * (.8 + .2 * Math.sin(t * .6)) * Math.min(1, cw / 300);
+      c2.drawImage(t > 290 && t < 446 ? SP.gold : SP.violet, W / 2 + cx * U - ar, H / 2 + cy * U - ar, ar * 2, ar * 2);
+    }
+    for (const p of P) {
+      const a = vis * (.28 + .72 * p.str) * (.65 + .35 * Math.sin(t * 1.7 + p.tw));
+      if (a < .01) continue;
+      const sh = EINK ? 0 : .006 * p.str;
+      const r = U * .0095 * p.s * (1 + .4 * p.str) * (EINK ? 1.35 : 1), X = W / 2 + (p.x + Math.sin(t * .7 + p.tw) * sh) * U, Y = H / 2 + (p.y + Math.cos(t * .6 + p.tw * 1.3) * sh) * U;
+      c2.globalAlpha = EINK ? Math.min(1, a * 1.2) : a; c2.drawImage(tintFor(p, t), X - r, Y - r, r * 2, r * 2);
+    }
+  }
+  function drawShadow(t) {
+    const sv = win(t, 104, 150, 4, 6) * (1 - sstep(138, 146, t)); if (sv <= .01) return;
+    const [sx, sy] = shadowC(t);
+    c2.globalCompositeOperation = 'source-over';
+    for (const b of SHB) {
+      const [x, y] = figurePt(b, sx, sy, 1.1), r = U * .075;
+      c2.globalAlpha = .5 * sv;
+      c2.drawImage(SP.dark, W / 2 + (x + Math.sin(t * .8 + b.ph) * .006) * U - r, H / 2 + y * U - r, r * 2, r * 2);
+    }
+  }
+  function drawRoots(t) {
+    const a = win(t, 172, 198, 3, 6); if (a <= .01) return;
+    const gr = sstep(174, 192, t);
+    c2.globalCompositeOperation = 'lighter'; c2.lineCap = 'round'; c2.lineJoin = 'round';
+    c2.globalAlpha = a * .45; c2.strokeStyle = '#bcaaff'; c2.lineWidth = 1;
+    c2.beginPath(); c2.moveTo(0, H * .2); c2.lineTo(W, H * .2); c2.stroke();
+    for (const r of ROOTS) {
+      c2.globalAlpha = a * .7; c2.fillStyle = 'rgba(226,214,255,.55)';
+      c2.beginPath(); c2.ellipse(r.fx * W, H * .2, U * .055, U * .022, 0, Math.PI, TAU); c2.fill();
+    }
+    for (const [lw, al] of [[6, .1], [1.4, .75]]) {
+      c2.lineWidth = lw; c2.strokeStyle = '#b9a6ff';
+      for (const r of ROOTS) {
+        const n = gr * 30;
+        c2.globalAlpha = a * al; c2.beginPath();
+        for (let k = 0; k <= Math.min(30, Math.ceil(n)); k++) { const [x, y] = r.pts[k]; k ? c2.lineTo(x * W, y * H) : c2.moveTo(x * W, y * H); }
+        c2.stroke();
+        for (const b of r.br) {
+          const bn = clamp((n - b.k0) / 30 * 12 * 2.2, 0, 12); if (bn <= 0) continue;
+          c2.beginPath();
+          for (let k = 0; k <= Math.ceil(bn); k++) { const [x, y] = b.bp[k]; k ? c2.lineTo(x * W, y * H) : c2.moveTo(x * W, y * H); }
+          c2.stroke();
+        }
+      }
+    }
+    const hr = U * .25; c2.globalAlpha = a * gr * .5; c2.drawImage(SP.violet, W * .5 - hr, H * .84 - hr, hr * 2, hr * 2);
+  }
+  function drawMandala(t) {
+    const a = win(t, 298, 372, 6, 6); if (a <= .01) return;
+    const m = sstep(300, 328, t), rot = t * .05, cx = W / 2, cy = H / 2, Rm = U * .36 * (1 + .012 * Math.sin(t * .8));
+    c2.globalCompositeOperation = 'lighter'; c2.lineWidth = 1.2; c2.strokeStyle = '#ffd896';
+    c2.globalAlpha = a * .75;
+    c2.beginPath(); c2.arc(cx, cy, Rm, -Math.PI / 2, -Math.PI / 2 + TAU * sstep(300, 312, t)); c2.stroke();
+    c2.beginPath(); c2.arc(cx, cy, Rm * .28, Math.PI / 2, Math.PI / 2 + TAU * sstep(304, 314, t)); c2.stroke();
+    const sq = (r, ang, k) => { c2.globalAlpha = a * .6 * k; c2.beginPath(); for (let i = 0; i <= 4; i++) { const q = ang + i * Math.PI / 2 + Math.PI / 4; i ? c2.lineTo(cx + Math.cos(q) * r, cy + Math.sin(q) * r) : c2.moveTo(cx + Math.cos(q) * r, cy + Math.sin(q) * r); } c2.stroke(); };
+    sq(Rm * .98, rot, sstep(308, 318, t)); sq(Rm * .98, -rot * 1.3 + Math.PI / 4, sstep(312, 322, t));
+    c2.globalAlpha = a * .5 * sstep(306, 316, t);
+    for (let i = 0; i < 4; i++) { const q = rot + i * Math.PI / 2; c2.beginPath(); c2.moveTo(cx + Math.cos(q) * Rm * .28, cy + Math.sin(q) * Rm * .28); c2.lineTo(cx + Math.cos(q) * Rm, cy + Math.sin(q) * Rm); c2.stroke(); }
+    for (let i = 0; i < 8; i++) {
+      const k = sstep(314 + i * 1.2, 320 + i * 1.2, t); if (k <= 0) continue;
+      const q = -rot * .7 + i * Math.PI / 4;
+      c2.globalAlpha = a * .7 * k; c2.beginPath();
+      c2.ellipse(cx + Math.cos(q) * Rm * .62, cy + Math.sin(q) * Rm * .62, Rm * .2, Rm * .075, q, 0, TAU); c2.stroke();
+    }
+    // the lights gathered on the way down come home
+    const cols = [SP.gold, SP.pale, SP.violet, SP.teal, SP.rose, SP.gold, SP.gold, SP.pale];
+    for (let i = 0; i < 8; i++) {
+      const k = sstep(296 + i * 1.6, 312 + i * 1.6, t), q0 = i * Math.PI / 4 + .6, q1 = -rot * .7 + i * Math.PI / 4;
+      const rr = lerp(U * 1.1, Rm * .62, k), q = lerp(q0, q1, k);
+      const x = cx + Math.cos(q) * rr, y = cy + Math.sin(q) * rr, r = U * (.03 + .015 * Math.sin(t * 1.3 + i));
+      c2.globalAlpha = a * (.4 + .6 * k); c2.drawImage(cols[i], x - r, y - r, r * 2, r * 2);
+    }
+    const cr = U * .05 * (1 + .1 * Math.sin(t * 1.1)); c2.globalAlpha = a * m; c2.drawImage(SP.pale, cx - cr, cy - cr, cr * 2, cr * 2);
+  }
+  function drawSeed(t) {
+    const a = win(t, 366, 448, 3, 6); if (a <= .01) return;
+    const x = W / 2, y = H / 2 - U * .05 * sstep(376, 392, t), pu = 1 + .15 * Math.sin(t * 2.2);
+    c2.globalCompositeOperation = 'lighter';
+    let r = U * .13 * pu; c2.globalAlpha = a * .5; c2.drawImage(SP.gold, x - r, y - r, r * 2, r * 2);
+    r = U * .036; c2.globalAlpha = a; c2.drawImage(SP.gold, x - r, y - r, r * 2, r * 2); c2.drawImage(SP.pale, x - r * .5, y - r * .5, r, r);
+  }
+  let sinkVel = 0;
+  function drawMotes(t, dt, S, wlPx) {
+    const a = sstep(.04, .14, S) * (1 - CORE(t) * .6); if (a <= .01) return;
+    c2.globalCompositeOperation = 'lighter';
+    for (const m of MOTES) {
+      m.y -= sinkVel * 42 * dt * m.z; m.x += Math.sin(t * .1 + m.ph) * .002 * dt; m.y += .004 * dt * m.z;
+      if (m.y < -.02) m.y += 1.04; if (m.y > 1.02) m.y -= 1.04;
+      const X = m.x * W, Y = m.y * H; if (Y < wlPx) continue;
+      const r = U * .012 * m.z;
+      c2.globalAlpha = a * .35 * m.z * (.6 + .4 * Math.sin(t * .9 + m.ph));
+      c2.drawImage(S > .5 ? SP.violet : SP.teal, X - r, Y - r, r * 2, r * 2);
+    }
+  }
+  function drawBubbles(t, dt, wlPx) {
+    const a = win(t, 34, 84, 4, 8); if (a <= .01) return;
+    c2.globalCompositeOperation = 'lighter'; c2.strokeStyle = 'rgba(214,236,255,.85)'; c2.lineWidth = 1;
+    for (const b of BUB) {
+      b.y -= b.v * dt * (1 + sinkVel * 20);
+      if (b.y < -.05) { b.y = 1.05 + b.ph / TAU * .3; b.x = (b.x + .618) % 1; }
+      const X = (b.x + Math.sin(t * 1.5 + b.ph) * .006) * W, Y = b.y * H; if (Y < wlPx) continue;
+      c2.globalAlpha = a * .5; c2.beginPath(); c2.arc(X, Y, b.r, 0, TAU); c2.stroke();
+    }
+  }
+  function drawLamp(t, wlPx) {
+    const a = win(t, 2, 74, 4, 2) + win(t, 444, 480, 8, 6) * 1.3; if (a <= .01) return;
+    const dawn = sstep(440, 470, t), x = W * .5, y = H * (1 - .46) + H * .07;
+    c2.save(); c2.beginPath(); c2.rect(0, 0, W, Math.max(0, wlPx)); c2.clip();
+    c2.globalCompositeOperation = 'lighter';
+    for (let k = 1; k < 16; k++) {
+      const yy = y + k * U * .012, xx = x + Math.sin(t * 2.1 + k * 1.7) * U * .0025 * k, r = U * (.02 - k * .0007);
+      c2.globalAlpha = a * .32 * (1 - k / 16); c2.drawImage(SP.gold, xx - r * 2, yy - r * .6, r * 4, r * 1.2);
+    }
+    const fl = .9 + .07 * Math.sin(t * 9) + .04 * Math.sin(t * 23);
+    let r = U * .15 * (1 + dawn * .6); c2.globalAlpha = a * .34 * fl; c2.drawImage(SP.gold, x - r, y - U * .02 - r, r * 2, r * 2);
+    r = U * .032; c2.globalAlpha = a * fl; c2.drawImage(SP.gold, x - r, y - U * .02 - r, r * 2, r * 2); c2.drawImage(SP.pale, x - r * .5, y - U * .02 - r * .5, r, r);
+    c2.globalCompositeOperation = 'source-over'; c2.globalAlpha = a * .85; c2.fillStyle = '#120a1c';
+    c2.beginPath(); c2.ellipse(x, y, U * .024, U * .006, 0, 0, TAU); c2.fill();
+    c2.restore();
+  }
+  function fallbackBg(S) {
+    const k = clamp(S, 0, 1);
+    const cA = [lerp(40, 3, k), lerp(34, 2, k), lerp(70, 8, k)].map((v) => v | 0);
+    c2.globalCompositeOperation = 'source-over'; c2.globalAlpha = 1;
+    c2.fillStyle = `rgb(${cA})`; c2.fillRect(0, 0, W, H);
+  }
+
+  /* ───────────── Sound: drone, choir, water, bells, a heart ───────────── */
+  const AU = { on: false };
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const CHORDS = [[0, [50, 57, 62, 65], 'a'], [30, [50, 58, 62, 65], 'a'], [62, [50, 55, 62, 67], 'o'], [100, [50, 57, 62, 69], 'o'], [132, [46, 58, 62, 69], 'o'], [156, [50, 51, 57, 62], 'u'], [176, [50, 56, 62, 63], 'u'], [194, [53, 57, 60, 64], 'a'], [212, [50, 55, 59, 62], 'o'], [228, [46, 53, 58, 62], 'o'], [250, [46, 53, 56, 62], 'u'], [264, [57, 60, 64, 69], 'e'], [278, [50, 51, 56, 57], 'u'], [298, [57, 62, 66, 69], 'a'], [330, [54, 61, 66, 69], 'a'], [368, [50, 57, 64, 66], 'a'], [400, [55, 59, 62, 67], 'e'], [428, [57, 61, 64, 69], 'a'], [446, [50, 57, 62, 66], 'a']];
+  const FORM = { a: [800, 1150, 2900], o: [450, 800, 2830], u: [325, 700, 2530], e: [400, 1600, 2700] };
+  const BELLS = [[7, 62], [21, 69], [64, 57], [86, 65], [99, 60], [112, 62], [146, 69], [160, 50], [178, 63], [198, 72], [216, 62], [230, 58], [266, 76], [284, 57], [300, 66], [304, 69], [309, 74], [314, 78], [326, 66], [368, 69], [446, 74], [449, 78], [452, 81]];
+  const CHOIR = track([[0, 0], [8, .22], [40, .3], [70, .26], [132, .46], [150, .3], [176, .36], [194, .46], [228, .4], [250, .3], [264, .46], [280, .5], [290, .08], [298, .12], [318, .9], [360, .72], [380, .42], [430, .58], [450, .8], [470, .5], [480, 0]]);
+  const DRONE = track([[0, 0], [4, .12], [60, .16], [250, .2], [286, .06], [300, .14], [440, .14], [476, 0]]);
+  function impulse(ac, sec, decay) {
+    const len = ac.sampleRate * sec | 0, b = ac.createBuffer(2, len, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+    return b;
+  }
+  function startAudio() {
+    const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
+    const ac = new Ctx();
+    const master = ac.createGain(); master.gain.value = 0;
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -20; comp.ratio.value = 3;
+    master.connect(comp); comp.connect(ac.destination);
+    const rev = ac.createConvolver(); rev.buffer = impulse(ac, 6.5, 2.4);
+    const revG = ac.createGain(); revG.gain.value = .75; rev.connect(revG); revG.connect(master);
+    const send = (node, dry, wet) => { const d = ac.createGain(); d.gain.value = dry; node.connect(d); d.connect(master); const w = ac.createGain(); w.gain.value = wet; node.connect(w); w.connect(rev); };
+    const droneLP = ac.createBiquadFilter(); droneLP.type = 'lowpass'; droneLP.frequency.value = 900; droneLP.Q.value = .8;
+    const droneG = ac.createGain(); droneG.gain.value = 0; droneLP.connect(droneG); send(droneG, .6, .45);
+    for (const [m, det] of [[38, 0], [45, -6], [50, 5], [50, -8]]) { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det; const gg = ac.createGain(); gg.gain.value = .16; o.connect(gg); gg.connect(droneLP); o.start(); }
+    const lfo = ac.createOscillator(); lfo.frequency.value = .045; const lfoG = ac.createGain(); lfoG.gain.value = 110; lfo.connect(lfoG); lfoG.connect(droneLP.frequency); lfo.start();
+    const sub = ac.createOscillator(); sub.type = 'sine'; sub.frequency.value = mtof(26); const subG = ac.createGain(); subG.gain.value = 0; sub.connect(subG); subG.connect(master); sub.start();
+    const nb = ac.createBuffer(1, ac.sampleRate * 4, ac.sampleRate), nd = nb.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < nd.length; i++) { const w = Math.random() * 2 - 1; b0 = .99765 * b0 + w * .099; b1 = .963 * b1 + w * .2965; b2 = .57 * b2 + w * 1.0526; nd[i] = (b0 + b1 + b2 + w * .1848) * .14; }
+    const ns = ac.createBufferSource(); ns.buffer = nb; ns.loop = true;
+    const nLP = ac.createBiquadFilter(); nLP.type = 'lowpass'; nLP.frequency.value = 900;
+    const nG = ac.createGain(); nG.gain.value = 0; ns.connect(nLP); nLP.connect(nG); send(nG, .7, .3); ns.start();
+    const wave = ac.createOscillator(); wave.frequency.value = .11; const waveG = ac.createGain(); waveG.gain.value = .04; wave.connect(waveG); waveG.connect(nG.gain); wave.start();
+    const choirG = ac.createGain(); choirG.gain.value = 0; send(choirG, .35, .7);
+    const voices = [0, 1, 2, 3].map((k) => {
+      const out = ac.createGain(); out.gain.value = .22;
+      const src = ac.createGain();
+      const oscs = [-7, 7].map((d) => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.detune.value = d; o.frequency.value = mtof(CHORDS[0][1][k]); o.connect(src); o.start(); return o; });
+      const vib = ac.createOscillator(); vib.frequency.value = 4.6 + k * .37; const vg = ac.createGain(); vg.gain.value = 5; vib.connect(vg); oscs.forEach((o) => vg.connect(o.detune)); vib.start();
+      const fs = [0, 1, 2].map((j) => { const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = [7, 9, 11][j]; f.frequency.value = FORM.a[j]; const fg = ac.createGain(); fg.gain.value = [1, .55, .3][j]; src.connect(f); f.connect(fg); fg.connect(out); return f; });
+      const br = ac.createOscillator(); br.frequency.value = .07 + k * .023; const bg = ac.createGain(); bg.gain.value = .08; br.connect(bg); bg.connect(out.gain); br.start();
+      out.connect(choirG);
+      return { oscs, fs };
+    });
+    Object.assign(AU, { ac, master, rev, droneLP, droneG, subG, nLP, nG, choirG, voices, on: true, chord: -1, lastT: 0, beat: -1, nextUpd: 0 });
+  }
+  function bell(m, vel) {
+    const { ac } = AU, t0 = ac.currentTime + .02;
+    const out = ac.createGain(); const d = ac.createGain(); d.gain.value = .22; out.connect(d); d.connect(AU.master);
+    const w = ac.createGain(); w.gain.value = .95; out.connect(w); w.connect(AU.rev);
+    for (const [r, amp, dec] of [[1, 1, 7], [2.76, .42, 4], [5.4, .2, 2.2], [8.93, .09, 1.2]]) {
+      const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = mtof(m) * r;
+      const gg = ac.createGain(); gg.gain.setValueAtTime(0, t0); gg.gain.linearRampToValueAtTime(amp * .16 * vel, t0 + .005); gg.gain.exponentialRampToValueAtTime(.0001, t0 + dec);
+      o.connect(gg); gg.connect(out); o.start(t0); o.stop(t0 + dec + .1);
+    }
+  }
+  function heart(vel) {
+    const { ac } = AU, t0 = ac.currentTime + .02;
+    [0, .27].forEach((off, j) => {
+      const o = ac.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(64, t0 + off); o.frequency.exponentialRampToValueAtTime(34, t0 + off + .18);
+      const gg = ac.createGain(); gg.gain.setValueAtTime(0, t0 + off); gg.gain.linearRampToValueAtTime(.6 * vel * (j ? .6 : 1), t0 + off + .012); gg.gain.exponentialRampToValueAtTime(.0001, t0 + off + .42);
+      o.connect(gg); gg.connect(AU.master); o.start(t0 + off); o.stop(t0 + off + .5);
+    });
+  }
+  function audioUpdate(t) {
+    if (!AU.on) return;
+    const { ac } = AU, now = ac.currentTime;
+    // events that fall between the last update and now
+    if (t > AU.lastT && t - AU.lastT < 1) {
+      for (const [bt, m] of BELLS) if (bt > AU.lastT && bt <= t) bell(m, 1);
+    }
+    if (t >= 238 && t < 292) { const bi = Math.floor((t - 238) / 1.25); if (bi !== AU.beat) { AU.beat = bi; heart(win(t, 238, 292, 6, 10)); } }
+    AU.lastT = t;
+    if (performance.now() < AU.nextUpd) return;
+    AU.nextUpd = performance.now() + 200;
+    const S = SINK(t), fade = FADE(t), tc = .6;
+    AU.master.gain.setTargetAtTime((1 - fade) * .9, now, .5);
+    AU.droneG.gain.setTargetAtTime(DRONE(t), now, tc);
+    AU.droneLP.frequency.setTargetAtTime(lerp(1400, 190, sstep(0, .9, S)) + CORE(t) * 700 + SUN(t) * 900, now, 1.2);
+    AU.subG.gain.setTargetAtTime(sstep(.35, .7, S) * .32 * (1 - CORE(t) * .5), now, 1);
+    AU.nG.gain.setTargetAtTime(.07 + .22 * win(t, 30, 80, 6, 14) + .05 * sstep(.4, .8, S) + .06 * sstep(440, 455, t) * (1 - sstep(466, 476, t)), now, tc);
+    AU.nLP.frequency.setTargetAtTime(lerp(1800, 170, sstep(0, .5, S)), now, 1);
+    AU.choirG.gain.setTargetAtTime(CHOIR(t) * 1.5, now, 1.2);
+    let ci = 0; for (let i = 0; i < CHORDS.length; i++) if (t >= CHORDS[i][0]) ci = i;
+    if (ci !== AU.chord) {
+      AU.chord = ci; const [, notes, vowel] = CHORDS[ci];
+      AU.voices.forEach((v, k) => {
+        v.oscs.forEach((o) => o.frequency.setTargetAtTime(mtof(notes[k]), now, 1.6));
+        v.fs.forEach((f, j) => f.frequency.setTargetAtTime(FORM[vowel][j] * (1 + k * .02), now, 2));
+      });
+    }
+  }
+
+  /* ───────────── Time, frames, control ───────────── */
+  const TEST = location.hash.includes('test');
+  let t = 0, playing = false, started = false, ended = false, last = 0, lastDraw = 0, flash = 0;
+  const CHAPTERS = [66, 152, 176, 294, 372, 440];
+
+  function render(t, dt) {
+    const S = SINK(t);
+    sinkVel = (SINK(t + .5) - SINK(t - .5));
+    const WL = -0.1 + 11 * S, wlPx = H * (1 - WL);
+    if (g) {
+      g.uniform2f(U_.R, glc.width, glc.height); g.uniform1f(U_.T, t); g.uniform1f(U_.S, S);
+      g.uniform1f(U_.SUN, SUN(t)); g.uniform1f(U_.CORE, CORE(t)); g.uniform1f(U_.PULSE, pulseAt(t));
+      g.uniform1f(U_.FADE, FADE(t)); g.uniform1f(U_.WL, WL); g.uniform1f(U_.GRAIN, EINK ? 0 : 1);
+      g.drawArrays(g.TRIANGLES, 0, 3);
+    }
+    c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, fx.width, fx.height);
+    const dpr = fx.width / W; c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!g) fallbackBg(S);
+    stepParticles(t, dt);
+    drawRoots(t);
+    drawShadow(t);
+    drawParticles(t);
+    drawMandala(t);
+    drawSeed(t);
+    drawMotes(t, dt, S, wlPx);
+    drawBubbles(t, dt, wlPx);
+    drawLamp(t, wlPx);
+    const f = FADE(t);
+    if (f > 0) { c2.globalCompositeOperation = 'source-over'; c2.globalAlpha = f; c2.fillStyle = '#05030a'; c2.fillRect(0, 0, W, H); }
+    if (flash > 0) { flash--; c2.globalCompositeOperation = 'source-over'; c2.globalAlpha = 1; c2.fillStyle = '#000'; c2.fillRect(0, 0, W, H); }
+    c2.globalAlpha = 1; c2.globalCompositeOperation = 'source-over';
+    renderWords(t);
+    $('barFill').style.width = (t / TOTAL * 100).toFixed(2) + '%';
+  }
+  function step(now) {
+    const real = last ? clamp((now - last) / 1000, 0, EINK ? 1 : .25) : 0; last = now;
+    if (!playing) return;
+    const before = t;
+    t = Math.min(TOTAL, t + real);
+    if (EINK && CHAPTERS.some((c) => before < c && t >= c)) flash = 1;
+    render(t, Math.min(real, EINK ? .4 : .1));
+    audioUpdate(t);
+    if (t >= TOTAL && !ended) finish();
+  }
+  function frame(now) {
+    if (!EINK || now - lastDraw > 330) { lastDraw = now; step(now); }
+    requestAnimationFrame(frame);
+  }
+  function begin(withSound) {
+    if (withSound) { try { startAudio(); } catch (e) { console.error('audio', e); } }
+    started = true; playing = true; ended = false; t = 0; last = 0;
+    const gate = $('gate'); gate.classList.add('leaving'); setTimeout(() => { gate.hidden = true; gate.classList.remove('leaving'); }, 1600);
+    idleSoon();
+  }
+  function finish() {
+    ended = true; playing = false;
+    const e = $('end'); e.hidden = false;
+    if (AU.on) AU.master.gain.setTargetAtTime(0, AU.ac.currentTime, .8);
+  }
+  function setPlaying(on) {
+    if (!started || ended) return;
+    playing = on; last = 0;
+    $('pausedNote').hidden = on;
+    if (AU.on) { try { on ? AU.ac.resume() : AU.ac.suspend(); } catch (e) {} }
+  }
+  function seek(to) {
+    t = clamp(to, 0, TOTAL - .5);
+    if (AU.on) { AU.lastT = t; AU.beat = -1; }
+  }
+  let idleTimer = 0;
+  function idleSoon() { document.body.classList.remove('idle'); clearTimeout(idleTimer); idleTimer = setTimeout(() => document.body.classList.add('idle'), 2500); }
+
+  $('goSound').addEventListener('click', () => begin(true));
+  $('goQuiet').addEventListener('click', () => begin(false));
+  $('again').addEventListener('click', () => { $('end').hidden = true; ended = false; seek(0); playing = true; last = 0; if (AU.on) { AU.chord = -1; AU.lastT = 0; } });
+  addEventListener('pointerdown', (e) => { if (e.target.closest('.panel')) return; setPlaying(!playing); idleSoon(); });
+  addEventListener('pointermove', idleSoon);
+  addEventListener('keydown', (e) => {
+    if (!started) return;
+    if (e.key === ' ') { e.preventDefault(); setPlaying(!playing); }
+    else if (e.key === 'ArrowRight') seek(t + 15);
+    else if (e.key === 'ArrowLeft') seek(t - 15);
+  });
+  if (EINK) $('gateNote').textContent = 'E-ink version: fewer frames, larger light, and a black flash between chapters to clear the screen. Best in a fast refresh mode. Tap to pause.';
+
+  // Draw one still frame behind the title so the page never opens blank.
+  render(0.001, 0);
+  requestAnimationFrame(frame);
+
+  // Hooks for automated testing.
+  window.F = { seek, step, render, begin, get t() { return t; }, set playing(v) { playing = v; }, get ended() { return ended; } };
+  if (TEST) { started = true; playing = true; $('gate').hidden = true; }
+})();
+</script>
