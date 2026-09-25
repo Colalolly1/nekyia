@@ -67,6 +67,9 @@
       <button class="btn solid" id="goSound" type="button">Begin, with sound</button>
       <button class="btn" id="goQuiet" type="button">Begin in silence</button>
     </div>
+    <div class="btns" style="margin-top:14px">
+      <button class="btn" id="einkBtn" type="button" aria-pressed="false">E-ink screen: off</button>
+    </div>
     <p class="note" id="gateNote">Best in the dark, with headphones. Nothing to do but watch. Tap to pause; the arrow keys skip.</p>
   </div>
 </section>
@@ -99,8 +102,12 @@
   const sstep = (a, b, x) => { const k = clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
   const win = (t, a, b, fi = 3, fo = 3) => sstep(a, a + fi, t) * (1 - sstep(b - fo, b, t));
   const TAU = Math.PI * 2;
-  const EINK = /HiBreak|Bigme|Kompakt|Mudita|Boox|Onyx|reMarkable|Kindle/i.test(navigator.userAgent) || location.hash.includes('eink');
-  if (EINK) document.body.classList.add('eink');
+  let saved = null; try { saved = localStorage.getItem('nsj.eink'); } catch (e) {}
+  let EINK = saved === null ? (/HiBreak|Bigme|Kompakt|Mudita|Boox|Onyx|reMarkable|Kindle/i.test(navigator.userAgent) || location.hash.includes('eink')) : saved === '1';
+  if (location.hash.includes('eink')) EINK = true;
+  const PHONE = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+  let LITE = EINK;
+  document.body.classList.toggle('eink', EINK);
   function track(keys) {
     return (t) => {
       if (t <= keys[0][0]) return keys[0][1];
@@ -185,11 +192,11 @@
   try { g = glc.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: true }); } catch (e) { g = null; }
   const FS = `
 precision highp float;
-uniform vec2 R; uniform float T,S,SUN,CORE,PULSE,FADE,WL,GRAIN;
+uniform vec2 R; uniform float T,S,SUN,CORE,PULSE,FADE,WL,GRAIN,OCT;
 float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);
  return mix(mix(hash(i),hash(i+vec2(1.,0.)),u.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);}
-float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.02+vec2(3.1,1.7);a*=.5;}return v;}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){if(float(i)>=OCT)break;v+=a*noise(p);p=p*2.02+vec2(3.1,1.7);a*=.5;}return v;}
 vec3 deep(float s){
  vec3 c=mix(vec3(.12,.19,.29),vec3(.06,.07,.2),smoothstep(.06,.3,s));
  c=mix(c,vec3(.045,.02,.1),smoothstep(.3,.6,s));
@@ -265,7 +272,7 @@ void main(){
       const b = g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER, b);
       g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), g.STATIC_DRAW);
       const loc = g.getAttribLocation(pr, 'a'); g.enableVertexAttribArray(loc); g.vertexAttribPointer(loc, 2, g.FLOAT, false, 0, 0);
-      for (const n of ['R', 'T', 'S', 'SUN', 'CORE', 'PULSE', 'FADE', 'WL', 'GRAIN']) U_[n] = g.getUniformLocation(pr, n);
+      for (const n of ['R', 'T', 'S', 'SUN', 'CORE', 'PULSE', 'FADE', 'WL', 'GRAIN', 'OCT']) U_[n] = g.getUniformLocation(pr, n);
     } catch (e) { console.error('shader', e); g = null; }
   }
 
@@ -273,11 +280,11 @@ void main(){
   const fx = $('fx'), c2 = fx.getContext('2d');
   let W = 1, H = 1, U = 1;
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const dpr = LITE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
     W = innerWidth; H = innerHeight; U = Math.min(W, H);
     fx.width = Math.max(1, W * dpr | 0); fx.height = Math.max(1, H * dpr | 0);
     c2.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const gs = 0.55 * dpr;
+    const gs = LITE ? 0.3 : 0.55 * dpr;
     glc.width = Math.max(2, W * gs | 0); glc.height = Math.max(2, H * gs | 0);
     if (g) g.viewport(0, 0, glc.width, glc.height);
   }
@@ -443,7 +450,9 @@ void main(){
   function stepParticles(t, dt) {
     const ws = SHAPES.map(([w]) => w(t));
     const drift = .02;
-    for (const p of P) {
+    const na = LITE ? 460 : NP;
+    for (let i0 = 0; i0 < na; i0++) {
+      const p = P[i0];
       let tx = 0, ty = 0, sw = 0;
       for (let i = 0; i < SHAPES.length; i++) { const w = ws[i]; if (w > .001) { const [x, y] = SHAPES[i][1](p, t); tx += x * w; ty += y * w; sw += w; } }
       const free = 1 - Math.min(1, sw) * .85;
@@ -462,17 +471,19 @@ void main(){
     c2.globalCompositeOperation = 'lighter';
     // an aura behind whatever form the light has gathered into
     let cx = 0, cy = 0, cw = 0;
-    for (const p of P) if (p.str > .5) { cx += p.x; cy += p.y; cw++; }
-    if (cw > 40 && !EINK) {
+    const na = LITE ? 460 : NP;
+    if (!LITE) for (const p of P) if (p.str > .5) { cx += p.x; cy += p.y; cw++; }
+    if (cw > 40 && !LITE) {
       cx /= cw; cy /= cw; const ar = U * .42;
       c2.globalAlpha = vis * .16 * (.8 + .2 * Math.sin(t * .6)) * Math.min(1, cw / 300);
       c2.drawImage(t > 290 && t < 446 ? SP.gold : SP.violet, W / 2 + cx * U - ar, H / 2 + cy * U - ar, ar * 2, ar * 2);
     }
-    for (const p of P) {
+    for (let i0 = 0; i0 < na; i0++) {
+      const p = P[i0];
       const a = vis * (.28 + .72 * p.str) * (.65 + .35 * Math.sin(t * 1.7 + p.tw));
       if (a < .01) continue;
       const sh = EINK ? 0 : .006 * p.str;
-      const r = U * .0095 * p.s * (1 + .4 * p.str) * (EINK ? 1.35 : 1), X = W / 2 + (p.x + Math.sin(t * .7 + p.tw) * sh) * U, Y = H / 2 + (p.y + Math.cos(t * .6 + p.tw * 1.3) * sh) * U;
+      const r = U * .0095 * p.s * (1 + .4 * p.str) * (EINK ? 1.35 : LITE ? 1.25 : 1), X = W / 2 + (p.x + Math.sin(t * .7 + p.tw) * sh) * U, Y = H / 2 + (p.y + Math.cos(t * .6 + p.tw * 1.3) * sh) * U;
       c2.globalAlpha = EINK ? Math.min(1, a * 1.2) : a; c2.drawImage(tintFor(p, t), X - r, Y - r, r * 2, r * 2);
     }
   }
@@ -551,7 +562,8 @@ void main(){
   function drawMotes(t, dt, S, wlPx) {
     const a = sstep(.04, .14, S) * (1 - CORE(t) * .6); if (a <= .01) return;
     c2.globalCompositeOperation = 'lighter';
-    for (const m of MOTES) {
+    for (let i0 = 0, nm = LITE ? 60 : MOTES.length; i0 < nm; i0++) {
+      const m = MOTES[i0];
       m.y -= sinkVel * 42 * dt * m.z; m.x += Math.sin(t * .1 + m.ph) * .002 * dt; m.y += .004 * dt * m.z;
       if (m.y < -.02) m.y += 1.04; if (m.y > 1.02) m.y -= 1.04;
       const X = m.x * W, Y = m.y * H; if (Y < wlPx) continue;
@@ -608,16 +620,17 @@ void main(){
   }
   function startAudio() {
     const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
-    const ac = new Ctx();
+    let ac; try { ac = new Ctx({ latencyHint: 'playback' }); } catch (e) { ac = new Ctx(); }
+    const light = LITE || PHONE;
     const master = ac.createGain(); master.gain.value = 0;
     const comp = ac.createDynamicsCompressor(); comp.threshold.value = -20; comp.ratio.value = 3;
     master.connect(comp); comp.connect(ac.destination);
-    const rev = ac.createConvolver(); rev.buffer = impulse(ac, 6.5, 2.4);
+    const rev = ac.createConvolver(); rev.buffer = impulse(ac, light ? 3 : 6.5, 2.4);
     const revG = ac.createGain(); revG.gain.value = .75; rev.connect(revG); revG.connect(master);
     const send = (node, dry, wet) => { const d = ac.createGain(); d.gain.value = dry; node.connect(d); d.connect(master); const w = ac.createGain(); w.gain.value = wet; node.connect(w); w.connect(rev); };
     const droneLP = ac.createBiquadFilter(); droneLP.type = 'lowpass'; droneLP.frequency.value = 900; droneLP.Q.value = .8;
     const droneG = ac.createGain(); droneG.gain.value = 0; droneLP.connect(droneG); send(droneG, .6, .45);
-    for (const [m, det] of [[38, 0], [45, -6], [50, 5], [50, -8]]) { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det; const gg = ac.createGain(); gg.gain.value = .16; o.connect(gg); gg.connect(droneLP); o.start(); }
+    for (const [m, det] of (light ? [[38, 0], [50, 5]] : [[38, 0], [45, -6], [50, 5], [50, -8]])) { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det; const gg = ac.createGain(); gg.gain.value = .16; o.connect(gg); gg.connect(droneLP); o.start(); }
     const lfo = ac.createOscillator(); lfo.frequency.value = .045; const lfoG = ac.createGain(); lfoG.gain.value = 110; lfo.connect(lfoG); lfoG.connect(droneLP.frequency); lfo.start();
     const sub = ac.createOscillator(); sub.type = 'sine'; sub.frequency.value = mtof(26); const subG = ac.createGain(); subG.gain.value = 0; sub.connect(subG); subG.connect(master); sub.start();
     const nb = ac.createBuffer(1, ac.sampleRate * 4, ac.sampleRate), nd = nb.getChannelData(0);
@@ -631,7 +644,7 @@ void main(){
     const voices = [0, 1, 2, 3].map((k) => {
       const out = ac.createGain(); out.gain.value = .22;
       const src = ac.createGain();
-      const oscs = [-7, 7].map((d) => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.detune.value = d; o.frequency.value = mtof(CHORDS[0][1][k]); o.connect(src); o.start(); return o; });
+      const oscs = (light ? [0] : [-7, 7]).map((d) => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.detune.value = d; o.frequency.value = mtof(CHORDS[0][1][k]); o.connect(src); o.start(); return o; });
       const vib = ac.createOscillator(); vib.frequency.value = 4.6 + k * .37; const vg = ac.createGain(); vg.gain.value = 5; vib.connect(vg); oscs.forEach((o) => vg.connect(o.detune)); vib.start();
       const fs = [0, 1, 2].map((j) => { const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = [7, 9, 11][j]; f.frequency.value = FORM.a[j]; const fg = ac.createGain(); fg.gain.value = [1, .55, .3][j]; src.connect(f); f.connect(fg); fg.connect(out); return f; });
       const br = ac.createOscillator(); br.frequency.value = .07 + k * .023; const bg = ac.createGain(); bg.gain.value = .08; br.connect(bg); bg.connect(out.gain); br.start();
@@ -690,6 +703,9 @@ void main(){
 
   /* ───────────── Time, frames, control ───────────── */
   const TEST = location.hash.includes('test');
+  let slow = [];
+  function setLite(on) { LITE = on; resize(); }
+  function setEink(on) { EINK = on; LITE = on || LITE; document.body.classList.toggle('eink', on); try { localStorage.setItem('nsj.eink', on ? '1' : '0'); } catch (e) {} resize(); einkBtn.setAttribute('aria-pressed', String(on)); einkBtn.textContent = on ? 'E-ink screen: on' : 'E-ink screen: off'; noteFor(); }
   let t = 0, playing = false, started = false, ended = false, last = 0, lastDraw = 0, flash = 0;
   const CHAPTERS = [66, 152, 176, 294, 372, 440];
 
@@ -700,7 +716,7 @@ void main(){
     if (g) {
       g.uniform2f(U_.R, glc.width, glc.height); g.uniform1f(U_.T, t); g.uniform1f(U_.S, S);
       g.uniform1f(U_.SUN, SUN(t)); g.uniform1f(U_.CORE, CORE(t)); g.uniform1f(U_.PULSE, pulseAt(t));
-      g.uniform1f(U_.FADE, FADE(t)); g.uniform1f(U_.WL, WL); g.uniform1f(U_.GRAIN, EINK ? 0 : 1);
+      g.uniform1f(U_.FADE, FADE(t)); g.uniform1f(U_.WL, WL); g.uniform1f(U_.GRAIN, EINK ? 0 : 1); g.uniform1f(U_.OCT, LITE ? 3 : 5);
       g.drawArrays(g.TRIANGLES, 0, 3);
     }
     c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, fx.width, fx.height);
@@ -733,7 +749,11 @@ void main(){
     if (t >= TOTAL && !ended) finish();
   }
   function frame(now) {
-    if (!EINK || now - lastDraw > 330) { lastDraw = now; step(now); }
+    const gap = EINK ? 330 : LITE ? 32 : 0;
+    if (now - lastDraw >= gap) {
+      if (playing && !LITE && lastDraw) { const ft = now - lastDraw; slow.push(ft); if (slow.length > 90) { slow.sort((a, b) => a - b); if (slow[45] > 30) setLite(true); slow = []; } }
+      lastDraw = now; step(now);
+    }
     requestAnimationFrame(frame);
   }
   function begin(withSound) {
@@ -771,14 +791,17 @@ void main(){
     else if (e.key === 'ArrowRight') seek(t + 15);
     else if (e.key === 'ArrowLeft') seek(t - 15);
   });
-  if (EINK) $('gateNote').textContent = 'E-ink version: fewer frames, larger light, and a black flash between chapters to clear the screen. Best in a fast refresh mode. Tap to pause.';
+  const einkBtn = $('einkBtn');
+  function noteFor() { $('gateNote').textContent = EINK ? 'E-ink version: fewer frames, larger light, and a black flash between chapters to clear the screen. Best in a fast refresh mode. Tap to pause.' : 'Best in the dark, with headphones. Nothing to do but watch. Tap to pause; the arrow keys skip.'; }
+  einkBtn.addEventListener('click', () => setEink(!EINK));
+  einkBtn.setAttribute('aria-pressed', String(EINK)); einkBtn.textContent = EINK ? 'E-ink screen: on' : 'E-ink screen: off'; noteFor();
 
   // Draw one still frame behind the title so the page never opens blank.
   render(0.001, 0);
   requestAnimationFrame(frame);
 
   // Hooks for automated testing.
-  window.F = { seek, step, render, begin, get t() { return t; }, set playing(v) { playing = v; }, get ended() { return ended; } };
+  window.F = { seek, step, render, begin, setLite, get lite() { return LITE; }, get t() { return t; }, set playing(v) { playing = v; }, get ended() { return ended; } };
   if (TEST) { started = true; playing = true; $('gate').hidden = true; }
 })();
 </script>
