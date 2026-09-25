@@ -48,6 +48,8 @@
     transition: opacity .4s;
   }
   .hit .lbl small { display: block; text-align: center; font-family: var(--body); font-style: italic; font-size: 14px; letter-spacing: 0; opacity: .85; }
+  .hit .lbl { text-align: center; }
+  .hit .lbl small { white-space: normal; width: max-content; max-width: min(78vw, 340px); margin: 0 auto; }
   .hit.seen .lbl::after { content: ' ·'; color: var(--gold); }
 
   /* Intro */
@@ -224,6 +226,8 @@
     .spiral-cap { left: 116px; }
     .hud-right { max-width: 62vw; gap: 6px; }
     .chip, .ctl { padding: 6px 10px; font-size: 11px; }
+    .hud-left { max-width: calc(100vw - 62vw - 34px); }
+    .chip { display: inline-block; white-space: normal; line-height: 1.35; border-radius: 14px; }
     .hit .lbl { font-size: 15px; }
   }
   @media (prefers-reduced-motion: reduce) {

@@ -485,6 +485,11 @@ void main(){
       f.el.style.setProperty('--lbl', col.lbl); f.el.style.setProperty('--lblglow', col.lblglow);
       const near = 1 - clamp(Math.abs(yy - H / 2) / (H * 0.45), 0, 1);
       f.lbl.style.opacity = (0.25 + 0.75 * near).toFixed(2);
+      // Keep the label on screen: slide it sideways when the form sits near an edge.
+      if (!f.lw || f.lwW !== W) { f.lw = f.lbl.offsetWidth; f.lwW = W; }
+      const half = f.lw / 2, pad = 12;
+      const shift = clamp(x, pad + half, Math.max(pad + half, W - pad - half)) - x;
+      if (Math.abs(shift - (f.lshift || 0)) > 0.5) { f.lshift = shift; f.lbl.style.transform = `translateX(calc(-50% + ${shift.toFixed(1)}px))`; }
       f.shown = true;
     }
   }
