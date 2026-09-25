@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Nekyia</title>
 <meta name="description" content="A descent into the psyche with C. G. Jung: an animated, interactive map of analytical psychology.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -140,10 +141,83 @@
 
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
+
+  /* Reflection notes (all modes) */
+  .note-label { display: block; font-size: 15px; color: var(--muted); margin: 6px 0 6px; }
+  .note { width: 100%; box-sizing: border-box; font: inherit; font-size: 17px; line-height: 1.5; color: var(--text); background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; resize: vertical; }
+
+  /* ───────── E-ink: paper pages, ink on white, nothing moving by itself ───────── */
+  body.eink {
+    --night: #ffffff; --deep: #ffffff; --glass: #ffffff; --glass-strong: #ffffff;
+    --line: #1a1030; --text: #111111; --muted: #2e2640; --faint: #3d3550; --ink: #111111;
+    --gold: #5c3d00; --violet: #3b1f6b; --rose: #7a1f3d; --tint: #3b1f6b;
+    background: #fff; color: #111; font-size: 19px; line-height: 1.65;
+  }
+  body.eink #bg, body.eink #fg, body.eink #hits, body.eink #track, body.eink .hud-left, body.eink #spiral, body.eink .spiral-cap { display: none !important; }
+  body.eink *, body.eink *::before, body.eink *::after { animation: none !important; transition: none !important; }
+  body.eink .chip, body.eink .ctl, body.eink .chamber, body.eink .drawer, body.eink .close { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  body.eink .hud-right { position: sticky; top: env(safe-area-inset-top, 0px); display: flex; justify-content: flex-end; max-width: none; padding: 10px 14px; background: #fff; border-bottom: 1.5px solid #111; z-index: 6; }
+  body.eink .ctl { background: #fff; border: 1.5px solid #111; color: #111; font-size: 13px; padding: 9px 13px; }
+  body.eink .ctl[aria-pressed="true"] { background: #111; color: #fff; }
+  #paper { max-width: 680px; margin: 0 auto; padding: 22px 18px 40px; }
+  #paper h1 { font-family: var(--display); font-weight: 400; font-size: 64px; line-height: 1; margin: 18px 0 10px; }
+  #paper h2 { font-family: var(--display); font-weight: 400; font-size: 38px; line-height: 1.1; margin: 4px 0 12px; text-wrap: balance; }
+  #paper .sub { font-style: italic; font-size: 22px; margin: 0 0 18px; }
+  #paper .pp-quiet { color: var(--muted); font-size: 17px; }
+  #paper .pp-eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; margin: 0; color: var(--violet); }
+  #paper .pp-lede { font-size: 19px; margin: 0 0 22px; }
+  #paper .pp-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  #paper .pp-card { width: 100%; display: grid; grid-template-columns: 84px 1fr; gap: 14px; align-items: center; text-align: left; background: #fff; border: 1.5px solid #111; border-radius: 16px; padding: 12px 14px; cursor: pointer; color: #111; }
+  #paper .pp-card:active { background: #111; color: #fff; }
+  #paper .pp-glyph { width: 84px; height: 84px; }
+  #paper .pp-text b { display: block; font-family: var(--display); font-weight: 400; font-size: 23px; line-height: 1.15; }
+  #paper .pp-text span { display: block; font-size: 17px; font-style: italic; margin-top: 2px; }
+  #paper .pp-text em { display: inline-block; margin-top: 6px; font-style: normal; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; border: 1.5px solid #111; border-radius: 999px; padding: 2px 8px; background: #111; color: #fff; }
+  #paper .pp-text em.v { background: #fff; color: #111; }
+  #paper .pp-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 26px; }
+  #paper .pp-nav span { display: block; }
+  #paper .pp-progress { font-family: var(--mono); font-size: 13px; letter-spacing: .08em; text-align: center; margin-top: 16px; }
+  body.eink .btn { background: #fff; border: 1.5px solid #111; color: #111; font-size: 17px; min-height: 48px; padding: 10px 16px; border-radius: 14px; }
+  body.eink .btn.big { font-size: 18px; width: 100%; }
+  body.eink .btn.solid, body.eink .btn[aria-pressed="true"], body.eink .btn.on { background: #111; color: #fff; }
+  body.eink .btn:disabled { opacity: 1; color: #555; border-style: dashed; }
+  body.eink .chamber { background: #fff; color: #111; overflow-y: auto; }
+  body.eink .chamber .stage { border-color: #111; }
+  body.eink .chamber canvas.demo { filter: contrast(1.25) saturate(1.15); }
+  body.eink .chamber .canvas-wrap { background: #0b0714; border-block: 2px solid #111; }
+  body.eink .chamber .howto { color: #2e2640; font-size: 17px; }
+  body.eink .chamber .caption { color: #111; font-size: 18px; }
+  body.eink .chamber.paused .canvas-wrap::after { content: 'Tap the picture to continue'; position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); background: #fff; color: #111; border: 1.5px solid #111; border-radius: 999px; padding: 5px 12px; font-family: var(--mono); font-size: 12px; letter-spacing: .06em; pointer-events: none; }
+  body.eink .chamber { --tint: #3b1f6b !important; }
+  body.eink .chamber article .eyebrow { color: #3b1f6b; }
+  body.eink .chamber article p { font-weight: 400; }
+  body.eink .chamber article .lede { color: #2e2640; }
+  body.eink .chamber article .popular { color: #111; border-left: 3px solid #7a1f3d; }
+  body.eink .chamber article .reflect { background: #fff; border: 1.5px solid #111; }
+  body.eink .chamber article .reflect p { color: #111; }
+  body.eink .note { background: #fff; color: #111; border: 1.5px solid #111; font-size: 18px; }
+  body.eink .field { color: #111; }
+  body.eink .field input[type=text] { background: #fff; color: #111; border: 1.5px solid #111; }
+  body.eink .field input[type=range] { accent-color: #111; height: 32px; }
+  body.eink .close { background: #fff; color: #111; border: 1.5px solid #111; font-size: 13px; padding: 10px 16px; }
+  body.eink .drawer { background: #fff; color: #111; border-left: 1.5px solid #111; }
+  body.eink .drawer ol.life li::before { background: #111; box-shadow: none; }
+  body.eink .drawer a { color: #3b1f6b; }
+  #veil { position: fixed; inset: 0; z-index: 20; background: #0b0714; color: #fff; display: grid; place-content: center; text-align: center; padding: 24px; }
+  #veil p { margin: 0; }
+  #veil .vl-dir { font-family: var(--mono); font-size: 13px; letter-spacing: .3em; text-transform: uppercase; opacity: .85; }
+  #veil .vl-num { font-family: var(--display); font-size: 96px; line-height: 1; margin: 18px 0 6px; }
+  #veil .vl-name { font-family: var(--display); font-size: 36px; line-height: 1.1; }
+  #veil .vl-line { font-style: italic; font-size: 20px; margin-top: 18px; max-width: 26ch; }
+  @media (max-width: 760px) {
+    #paper h1 { font-size: 54px; }
+  }
+
   @media (max-width: 760px) {
     body { font-size: 16px; }
-    .chamber { grid-template-columns: 1fr; grid-template-rows: minmax(360px, 58svh) auto; overflow-y: auto; }
-    .chamber .stage { border-right: 0; border-bottom: 1px solid var(--line); min-height: 360px; }
+    .chamber { grid-template-columns: 1fr; grid-template-rows: max-content max-content; align-content: start; overflow-y: auto; }
+    .chamber .stage { border-right: 0; border-bottom: 1px solid var(--line); min-height: auto; }
+    .chamber .canvas-wrap { flex: none; height: clamp(260px, 48svh, 460px); }
     .chamber article { overflow: visible; }
     .chamber .howto { font-size: 15px; padding-right: 110px; }
     #spiral { width: 96px; height: 96px; }
@@ -160,6 +234,8 @@
 <canvas id="bg" aria-hidden="true"></canvas>
 <canvas id="fg" aria-hidden="true"></canvas>
 <div id="hits" role="list" aria-label="Concepts on the map"></div>
+<main id="paper" hidden></main>
+<div id="veil" hidden aria-live="polite"></div>
 
 <div id="track">
   <section class="intro" aria-labelledby="t">
@@ -181,7 +257,8 @@
   <button class="ctl" id="lifeBtn" type="button">Jung's life</button>
   <button class="ctl" id="readBtn" type="button">Reading</button>
   <button class="ctl" id="soundBtn" type="button" aria-pressed="false">Sound off</button>
-  <button class="ctl" id="stillBtn" type="button" aria-pressed="false" title="Stop the motion, for e-ink screens and quiet reading">Still</button>
+  <button class="ctl" id="stillBtn" type="button" aria-pressed="false" title="Stop the motion">Still</button>
+  <button class="ctl" id="einkBtn" type="button" aria-pressed="false" title="Paper pages for e-ink screens">E-ink</button>
 </div>
 <svg id="spiral" viewBox="-66 -66 132 132" role="img" aria-label="Individuation: your path so far"></svg>
 <div class="spiral-cap" id="spiralCap">Individuation</div>

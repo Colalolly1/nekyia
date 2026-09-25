@@ -156,7 +156,7 @@ void main(){
 
   /* ───────────── Foreground canvas ───────────── */
   const fg = document.getElementById('fg');
-  const ctx = fg.getContext('2d');
+  let ctx = fg.getContext('2d');
   let dpr = 1;
   function sizeCanvases() {
     dpr = Math.min(window.devicePixelRatio || 1, W < 760 ? 1.5 : 2);
@@ -451,6 +451,16 @@ void main(){
     circle(Math.cos(a) * r, Math.sin(a) * r, R * 0.07); ctx.fill();
   };
 
+  N.drawGlyphTo = (canvas, c, t = 3) => {
+    const r = canvas.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(r.width * d); canvas.height = Math.round(r.height * d);
+    const g = canvas.getContext('2d'), prev = ctx; ctx = g;
+    g.setTransform(d, 0, 0, d, 0, 0); g.translate(r.width / 2, r.height / 2);
+    g.strokeStyle = g.fillStyle = '#1a1030'; g.lineWidth = 2; g.lineCap = 'round'; g.lineJoin = 'round';
+    try { G[c.glyph] && G[c.glyph](Math.min(r.width, r.height) * 0.38, t, 1, {}); } catch (e) {}
+    ctx = prev;
+  };
+
   function drawForms(t) {
     const R = formRadius();
     for (const f of forms) {
@@ -705,10 +715,15 @@ void main(){
       <div class="reflect">
         <h3 style="margin-top:0">To sit with</h3>
         <p>${esc(c.question)}</p>
-        <small>A question for reflection, not a diagnosis. There is no right answer and nothing is recorded.</small>
+        <small>A question for reflection, not a diagnosis. There is no right answer.</small>
+        <label class="note-label" for="note-${c.id}">Your answer, if you want to write one. It stays on this device only.</label>
+        <textarea class="note" id="note-${c.id}" rows="4" placeholder="Write here…"></textarea>
         <button class="btn ${integrated ? 'on' : ''}" id="sitBtn" type="button" aria-pressed="${integrated}">${integrated ? 'Carried up the spiral' : 'I’ll sit with this'}</button>
       </div>`;
     art.scrollTop = 0;
+    const note = document.getElementById('note-' + c.id);
+    try { note.value = localStorage.getItem('nekyia.note.' + c.id) || ''; } catch (e) {}
+    note.addEventListener('input', () => { try { localStorage.setItem('nekyia.note.' + c.id, note.value); } catch (e) {} });
     document.getElementById('sitBtn').addEventListener('click', (e) => {
       N.mark('integrated', c.id);
       e.currentTarget.classList.add('on'); e.currentTarget.setAttribute('aria-pressed', 'true');
@@ -729,6 +744,7 @@ void main(){
     captionEl.innerHTML = ''; controls.innerHTML = ''; wrap.innerHTML = '';
     renderArticle(c);
     chamber.hidden = false; document.body.style.overflow = 'hidden';
+    N.poke();
     const kit = makeKit();
     let api = {};
     try { api = (N.demos[id] || N.demos.placeholder)(kit, c) || {}; } catch (e) { console.error('demo failed', id, e); }
@@ -742,12 +758,24 @@ void main(){
     current.kit.cleanups.forEach((f) => f());
     current = null; wrap.innerHTML = ''; controls.innerHTML = ''; captionEl.innerHTML = '';
     chamber.hidden = true; document.body.style.overflow = '';
-    if (!silent && returnFocus && returnFocus.focus) returnFocus.focus();
+    if (N.eink) N.renderPaper();
+    if (!silent && returnFocus && returnFocus.focus && document.contains(returnFocus)) returnFocus.focus();
     dirty = true;
   };
   N.inChamber = () => !!current;
+  let lastPoke = 0, einkAcc = 0;
+  N.poke = () => { lastPoke = performance.now(); };
   function chamberFrame(dt) {
     const k = current.kit; if (!k.W) return;
+    if (N.eink) {
+      // A slow screen ghosts under constant motion, so draw a few frames a
+      // second, and only for a few seconds after a touch. Then hold still.
+      const idle = performance.now() - lastPoke > 6000;
+      document.getElementById('chamber').classList.toggle('paused', idle);
+      if (idle) return;
+      einkAcc += dt; if (einkAcc < 0.12) return;
+      dt = einkAcc; einkAcc = 0;
+    }
     current.t += dt * k.speed();
     k.begin();
     for (const f of k.frames) {
@@ -779,6 +807,92 @@ void main(){
       <h3>Links</h3><ul>${r.links.map((l) => `<li><a href="${l.href}" target="_blank" rel="noopener">${esc(l.label)}</a></li>`).join('')}</ul>`;
   }
 
+  /* ───────────── Paper: the e-ink descent, one page per layer ───────────── */
+  const PAGES = [
+    { layers: ['surface', 'threshold'], num: 'I', name: 'Consciousness',
+      intro: 'What you know that you know. Its centre is the ego. It meets the world through the persona and orients itself in habitual ways, the psychological types. At the waterline below, the unconscious already answers back.' },
+    { layers: ['personal', 'boundary'], num: 'II', name: 'The personal unconscious',
+      intro: 'Below the waterline: everything once conscious and since forgotten or pushed away, and what was never strong enough to reach consciousness. Its contents are the complexes, and its first figure is the shadow.' },
+    { layers: ['collective'], num: 'III', name: 'The collective unconscious',
+      intro: 'The deepest layer, which is inherited rather than acquired. Its contents are the archetypes: typical forms that each person and culture fills with its own images.' },
+    { layers: ['core'], num: 'IV', name: 'The Self',
+      intro: 'The centre and the whole. The Self is known only through symbols such as the mandala. Individuation is the path toward it, and back up again.' },
+  ];
+  let page = -1;
+  const paper = document.getElementById('paper');
+  const VEIL_LINES = [
+    'The surface. Everything you can name.',
+    'Below the waterline, what you have forgotten is still here.',
+    'Deeper than any one life. The forms everyone shares.',
+    'The centre, which is also the whole.',
+  ];
+  function veil(p, down, then) {
+    const v = document.getElementById('veil');
+    const P = PAGES[p];
+    v.innerHTML = p < 0 ? '<p class="vl-name">Nekyia</p>' :
+      `<p class="vl-dir">${down ? 'Descending' : 'Rising'}</p><p class="vl-num">${P.num}</p><p class="vl-name">${P.name}</p><p class="vl-line">${VEIL_LINES[p]}</p>`;
+    v.hidden = false;
+    if (N.sound.isOn()) { const f = [392, 293.66, 196, 130.81][Math.max(0, p)] * (down ? 1 : 1.5); N.sound.pluck(f, 0.1, 4); N.sound.pluck(f * 1.5, 0.05, 5); }
+    setTimeout(() => { then(); v.hidden = true; }, 1300);
+  }
+  N.goPaper = (p) => { if (p === page) return N.renderPaper(p); veil(p, p > page, () => N.renderPaper(p)); };
+  // Glyphs come alive for a few seconds when a page arrives or a card is touched, at a rate the screen can show.
+  function animateGlyph(cv, c, secs) {
+    let t = 3, ticks = Math.round(secs * 8);
+    const tick = () => { N.drawGlyphTo(cv, c, t); t += 0.125 * 1.6; if (--ticks > 0 && document.contains(cv)) setTimeout(tick, 125); };
+    tick();
+  }
+  N.renderPaper = (p = page) => {
+    page = clamp(p, -1, PAGES.length - 1);
+    try { localStorage.setItem('nekyia.page', String(page)); } catch (e) {}
+    const done = N.state.integrated.length, total = N.concepts.length;
+    let html;
+    if (page < 0) {
+      html = `<section class="pp-intro"><h1>Nekyia</h1><p class="sub">A descent into the psyche with C.&nbsp;G.&nbsp;Jung, in four pages: from consciousness down to the Self.</p>
+        <p>Each page is one layer of the psyche. Tap a concept to open it: a demonstration you can try, Jung's ideas and sources, and a question to sit with.</p>
+        <p class="pp-quiet">Nekyia is the old Greek word for a journey to the underworld. Jung used it for the descent into the unconscious.</p>
+        <button class="btn big" type="button" data-go="0">Begin the descent</button></section>`;
+    } else {
+      const P = PAGES[page];
+      const cs = N.concepts.filter((c) => P.layers.includes(c.layer));
+      html = `<section class="pp-page">
+        <p class="pp-eyebrow">Layer ${P.num} of IV</p>
+        <h2>${P.name}</h2><p class="pp-lede">${P.intro}</p>
+        <ul class="pp-cards">${cs.map((c) => {
+          const v = N.state.visited.includes(c.id), k = N.state.integrated.includes(c.id);
+          return `<li><button class="pp-card" type="button" data-open="${c.id}">
+            <canvas class="pp-glyph" data-glyph="${c.id}" aria-hidden="true"></canvas>
+            <span class="pp-text"><b>${c.title}</b><span>${c.short}</span>${k ? '<em>Carried up</em>' : v ? '<em class="v">Visited</em>' : ''}</span>
+          </button></li>`; }).join('')}</ul>
+      </section>`;
+    }
+    const prev = page > -1 ? `<button class="btn big" type="button" data-go="${page - 1}">↑ ${page === 0 ? 'Title' : PAGES[page - 1].name}</button>` : '<span></span>';
+    const next = page < PAGES.length - 1 ? `<button class="btn big solid" type="button" data-go="${page + 1}">Deeper: ${PAGES[page + 1].name} ↓</button>` : '<span></span>';
+    paper.innerHTML = html + (page >= 0 ? `<nav class="pp-nav">${prev}${next}</nav><p class="pp-progress">Individuation: ${done} of ${total} carried up</p>` : '');
+    window.scrollTo(0, 0);
+    paper.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => N.goPaper(parseInt(b.dataset.go, 10))));
+    paper.querySelectorAll('[data-open]').forEach((b) => {
+      const cv = b.querySelector('canvas'), c = N.concepts.find((x) => x.id === b.dataset.open);
+      b.addEventListener('pointerdown', () => animateGlyph(cv, c, 1.2));
+      b.addEventListener('click', () => setTimeout(() => N.openChamber(c.id, b), 180));
+    });
+    requestAnimationFrame(() => paper.querySelectorAll('canvas[data-glyph]').forEach((cv, i) => {
+      const c = N.concepts.find((x) => x.id === cv.dataset.glyph);
+      N.drawGlyphTo(cv, c);
+      setTimeout(() => animateGlyph(cv, c, 2.5), i * 350);   // one after another, down the page
+    }));
+  };
+  N.setEink = (on) => {
+    N.eink = on;
+    document.body.classList.toggle('eink', on);
+    paper.hidden = !on;
+    try { localStorage.setItem('nekyia.eink', on ? '1' : '0'); } catch (e) {}
+    const b = document.getElementById('einkBtn'); if (b) { b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'Animated' : 'E-ink'; }
+    if (on) { let p = -1; try { p = parseInt(localStorage.getItem('nekyia.page') || '-1', 10); } catch (e) {} N.renderPaper(isNaN(p) ? -1 : p); }
+    else { layout(); readScroll(); }
+    dirty = true;
+  };
+
   /* ───────────── Loop & quality ───────────── */
   let dirty = true, last = performance.now(), T = 0, slowFrames = 0, lastDepth = 0;
   function step(now) {
@@ -790,6 +904,7 @@ void main(){
       else if (particleBudget > 0.4) { particleBudget -= 0.2; seedParticles(); }
     }
     if (current) { chamberFrame(dt); return; }
+    if (N.eink) return;
     const moving = Math.abs(target - depth) > 0.00005;
     if (N.still && !moving && !dirty) return;
     T += dt * N.speed();
@@ -823,6 +938,11 @@ void main(){
     soundBtn.addEventListener('click', setSound); introSound.addEventListener('click', setSound);
     const stillBtn = document.getElementById('stillBtn');
     stillBtn.addEventListener('click', () => { N.still = !N.still; stillBtn.setAttribute('aria-pressed', String(N.still)); dirty = true; });
+    document.getElementById('einkBtn').addEventListener('click', () => N.setEink(!N.eink));
+    ['pointerdown', 'pointermove', 'input', 'click', 'keydown'].forEach((ev) => chamber.addEventListener(ev, N.poke, true));
+    let savedEink = null; try { savedEink = localStorage.getItem('nekyia.eink'); } catch (e) {}
+    const looksEink = /HiBreak|Bigme|Kompakt|Mudita|Boox|Onyx|reMarkable|Kindle/i.test(navigator.userAgent) || location.hash === '#eink';
+    N.setEink(savedEink === null ? looksEink : savedEink === '1' || location.hash === '#eink');
     document.getElementById('beginBtn').addEventListener('click', () => N.scrollToDepth(N.concepts[0].d));
     document.getElementById('lifeBtn').addEventListener('click', () => openDrawer(document.getElementById('lifeDrawer'), lifeHTML()));
     document.getElementById('readBtn').addEventListener('click', () => openDrawer(document.getElementById('readDrawer'), readingHTML()));
