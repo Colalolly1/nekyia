@@ -105,7 +105,7 @@
   let saved = null; try { saved = localStorage.getItem('nsj.eink'); } catch (e) {}
   let EINK = saved === null ? (/HiBreak|Bigme|Kompakt|Mudita|Boox|Onyx|reMarkable|Kindle/i.test(navigator.userAgent) || location.hash.includes('eink')) : saved === '1';
   if (location.hash.includes('eink')) EINK = true;
-  const PHONE = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+  const PHONE = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || location.hash.includes('phone');
   let LITE = EINK;
   document.body.classList.toggle('eink', EINK);
   function track(keys) {
@@ -620,13 +620,24 @@ void main(){
   }
   function startAudio() {
     const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
-    let ac; try { ac = new Ctx({ latencyHint: 'playback' }); } catch (e) { ac = new Ctx(); }
     const light = LITE || PHONE;
+    // Phones: half the sample rate and big buffers. A drone and a choir lose nothing audible.
+    let ac; try { ac = new Ctx(light ? { latencyHint: 'playback', sampleRate: 22050 } : { latencyHint: 'playback' }); } catch (e) { ac = new Ctx(); }
     const master = ac.createGain(); master.gain.value = 0;
     const comp = ac.createDynamicsCompressor(); comp.threshold.value = -20; comp.ratio.value = 3;
     master.connect(comp); comp.connect(ac.destination);
-    const rev = ac.createConvolver(); rev.buffer = impulse(ac, light ? 3 : 6.5, 2.4);
-    const revG = ac.createGain(); revG.gain.value = .75; rev.connect(revG); revG.connect(master);
+    const revG = ac.createGain(); revG.gain.value = .75; revG.connect(master);
+    let rev;
+    if (light) {
+      // A few feedback echoes instead of convolution: a similar wash for a fraction of the work.
+      rev = ac.createGain(); revG.gain.value = .6;
+      for (const [dt, fb] of [[.31, .6], [.47, .56], [.73, .52]]) {
+        const d = ac.createDelay(1); d.delayTime.value = dt;
+        const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2000;
+        const f = ac.createGain(); f.gain.value = fb;
+        rev.connect(d); d.connect(lp); lp.connect(f); f.connect(d); lp.connect(revG);
+      }
+    } else { rev = ac.createConvolver(); rev.buffer = impulse(ac, 6.5, 2.4); rev.connect(revG); }
     const send = (node, dry, wet) => { const d = ac.createGain(); d.gain.value = dry; node.connect(d); d.connect(master); const w = ac.createGain(); w.gain.value = wet; node.connect(w); w.connect(rev); };
     const droneLP = ac.createBiquadFilter(); droneLP.type = 'lowpass'; droneLP.frequency.value = 900; droneLP.Q.value = .8;
     const droneG = ac.createGain(); droneG.gain.value = 0; droneLP.connect(droneG); send(droneG, .6, .45);
@@ -646,11 +657,12 @@ void main(){
       const src = ac.createGain();
       const oscs = (light ? [0] : [-7, 7]).map((d) => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.detune.value = d; o.frequency.value = mtof(CHORDS[0][1][k]); o.connect(src); o.start(); return o; });
       const vib = ac.createOscillator(); vib.frequency.value = 4.6 + k * .37; const vg = ac.createGain(); vg.gain.value = 5; vib.connect(vg); oscs.forEach((o) => vg.connect(o.detune)); vib.start();
-      const fs = [0, 1, 2].map((j) => { const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = [7, 9, 11][j]; f.frequency.value = FORM.a[j]; const fg = ac.createGain(); fg.gain.value = [1, .55, .3][j]; src.connect(f); f.connect(fg); fg.connect(out); return f; });
+      const fs = (light ? [0, 1] : [0, 1, 2]).map((j) => { const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = [7, 9, 11][j]; f.frequency.value = FORM.a[j]; const fg = ac.createGain(); fg.gain.value = [1, .55, .3][j]; src.connect(f); f.connect(fg); fg.connect(out); return f; });
       const br = ac.createOscillator(); br.frequency.value = .07 + k * .023; const bg = ac.createGain(); bg.gain.value = .08; br.connect(bg); bg.connect(out.gain); br.start();
       out.connect(choirG);
       return { oscs, fs };
     });
+    window.__rate = ac.sampleRate;
     Object.assign(AU, { ac, master, rev, droneLP, droneG, subG, nLP, nG, choirG, voices, on: true, chord: -1, lastT: 0, beat: -1, nextUpd: 0 });
   }
   function bell(m, vel) {

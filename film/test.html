@@ -3,7 +3,7 @@
 <script>
 const q=new URLSearchParams(location.search), f=document.getElementById('f'), out=document.getElementById('out');
 if(q.get('w')) f.style.width=q.get('w')+'px';
-f.src='index.html#test'+(q.get('eink')?'-eink':'');
+f.src='index.html#test'+(q.get('eink')?'-eink':'')+(q.get('phone')?'-phone':'');
 const errs=[];
 f.onload=()=>setTimeout(()=>{const w=f.contentWindow; w.addEventListener('error',e=>errs.push(e.message));
  const ce=w.console.error.bind(w.console); w.console.error=(...a)=>{errs.push(a.map(String).join(' ')); ce(...a);};
@@ -18,7 +18,7 @@ f.onload=()=>setTimeout(()=>{const w=f.contentWindow; w.addEventListener('error'
    try{ F.begin(true); }catch(e){ errs.push('begin '+e.message); }
    const t0=performance.now(); let frames=0;
    for(let t=0;t<478;t+=0.25){ F.seek(t); now+=100; F.step(now); frames++; }
-   out.textContent='SWEEP frames='+frames+' ms/frame='+((performance.now()-t0)/frames).toFixed(2)+' ended='+F.ended+' errs='+errs.length+'\n'+errs.slice(0,6).join('\n');
+   const A=w.document&&w.F; out.textContent='SWEEP rate='+(w.__rate||'?')+' frames='+frames+' ms/frame='+((performance.now()-t0)/frames).toFixed(2)+' ended='+F.ended+' errs='+errs.length+'\n'+errs.slice(0,6).join('\n');
  } else {
    if(q.get('lite')) F.setLite(true);
    const T=+q.get('t'); F.seek(Math.max(0,T-6));
