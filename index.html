@@ -25,6 +25,7 @@
   }
   html, body { background: var(--night); color: var(--text); }
   body { margin: 0; font-family: var(--body); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  [hidden] { display: none !important; }
   button { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 
@@ -37,6 +38,7 @@
   .hit {
     position: absolute; left: 0; top: 0; pointer-events: auto; border: 0; border-radius: 50%;
     background: transparent; cursor: pointer; padding: 0; will-change: transform;
+    transform: translate(-9999px, 0);   /* off-screen until the engine places it */
   }
   .hit .lbl {
     position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%);

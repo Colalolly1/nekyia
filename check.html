@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8"><body>
+<iframe id="f" src="index.html" style="position:fixed;left:0;top:0;width:1000px;height:700px;border:0"></iframe>
+<pre id="out" style="position:absolute;top:800px">running</pre>
+<script>
+const out=[]; const log=s=>{out.push(s);document.getElementById('out').textContent=out.join('\n');};
+const f=document.getElementById('f');
+f.onload=()=>{
+  const w=f.contentWindow, errs=[];
+  w.addEventListener('error',e=>errs.push(e.message+' @'+(e.filename||'').split('/').pop()+':'+(e.lineno||'')));
+  const oe=w.console.error; w.console.error=(...a)=>{errs.push(a.map(x=>x&&x.stack?x.stack.split('\n').slice(0,2).join(' '):String(x)).join(' '));};
+  let vt=w.performance.now()+1000;
+  const drive=n=>{for(let i=0;i<n;i++){vt+=16;try{w.N._step(vt);}catch(e){errs.push('step: '+e.message);}}};
+  setTimeout(()=>{
+    log('boot: '+(errs.splice(0).join(' | ')||'ok'));
+    for(const c of w.N.concepts){
+      w.N.openChamber(c.id);
+      // chamber canvas needs a size; the ResizeObserver may not have fired yet in headless
+      drive(5);
+      const cv=w.document.querySelector('#chCanvasWrap canvas');
+      [...w.document.querySelectorAll('#chControls button')].slice(0,5).forEach(b=>{try{b.click();}catch(e){errs.push('click '+e.message);} drive(20);});
+      if(cv){const r=cv.getBoundingClientRect();['pointerdown','pointermove','pointerup'].forEach(t=>cv.dispatchEvent(new w.PointerEvent(t,{clientX:r.left+r.width*0.5,clientY:r.top+r.height*0.5,bubbles:true,pointerId:1})));}
+      drive(40);
+      const cap=w.document.getElementById('chCaption').textContent.replace(/\s+/g,' ').slice(0,70);
+      log((errs.length?'FAIL ':'ok   ')+c.id.padEnd(14)+' canvas='+(cv?cv.width+'x'+cv.height:'none')+' cap="'+cap+'"'+(errs.length?' ERR: '+errs.splice(0).join(' | '):''));
+      w.N.closeChamber(true);
+    }
+    for(const d of [0.1,0.3,0.6,0.9,1]){ w.N.scrollToDepth(d,false); drive(15); }
+    log('map descent: '+(errs.splice(0).join(' | ')||'ok'));
+    log('DONE');
+  },1500);
+};
+</script>

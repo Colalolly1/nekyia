@@ -646,7 +646,7 @@ void main(){
       kit.resizers.forEach((f) => f(kit.W, kit.H));
     }
     const pos = (e) => { const r = cv.getBoundingClientRect(); kit.pointer.x = e.clientX - r.left; kit.pointer.y = e.clientY - r.top; };
-    const onDown = (e) => { pos(e); kit.pointer.down = true; kit.pointer.inside = true; kit.pointer.moved = 0; kit.pointer.lastInput = performance.now(); cv.setPointerCapture && cv.setPointerCapture(e.pointerId); kit.onDown && kit.onDown(kit.pointer); };
+    const onDown = (e) => { pos(e); kit.pointer.down = true; kit.pointer.inside = true; kit.pointer.moved = 0; kit.pointer.lastInput = performance.now(); try { cv.setPointerCapture && cv.setPointerCapture(e.pointerId); } catch (err) {} kit.onDown && kit.onDown(kit.pointer); };
     const onMove = (e) => { pos(e); kit.pointer.inside = true; kit.pointer.moved++; kit.pointer.lastInput = performance.now(); kit.onMove && kit.onMove(kit.pointer); };
     const onUp = () => { kit.pointer.down = false; kit.onUp && kit.onUp(kit.pointer); };
     const onLeave = () => { kit.pointer.inside = false; };
@@ -683,6 +683,7 @@ void main(){
     kit.tone = (f, v = 0.06, len = 1.5) => N.sound.pluck(f, v, len);
     kit.speed = () => (N.still ? 0.25 : N.reduced ? 0.45 : 1);
     kit.ink = { text: '#efe7f4', muted: '#b7abc8', gold: '#f1d49a', violet: '#b79ae8', rose: '#e0a5b3', deep: '#0b0714' };
+    resize();                         // size now, so the first frame is drawn, not blank
     requestAnimationFrame(resize);
     return kit;
   }
@@ -749,7 +750,10 @@ void main(){
     const k = current.kit; if (!k.W) return;
     current.t += dt * k.speed();
     k.begin();
-    for (const f of k.frames) f(current.t, dt * k.speed());
+    for (const f of k.frames) {
+      try { f(current.t, dt * k.speed()); }
+      catch (e) { if (!k.failed) { k.failed = true; console.error('demo frame failed', current.c.id, e); } }
+    }
   }
 
   /* ───────────── Drawers ───────────── */
@@ -777,17 +781,17 @@ void main(){
 
   /* ───────────── Loop & quality ───────────── */
   let dirty = true, last = performance.now(), T = 0, slowFrames = 0, lastDepth = 0;
-  function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  function step(now) {
+    const dt = clamp((now - last) / 1000, 0, 0.05); last = Math.max(last, now);
     if (dt > 0.022) slowFrames++; else slowFrames = Math.max(0, slowFrames - 1);
     if (slowFrames > 90) { // about a second and a half of struggling: lighten the load
       slowFrames = 0;
       if (bgScale > 0.34) { bgScale -= 0.08; sizeCanvases(); }
       else if (particleBudget > 0.4) { particleBudget -= 0.2; seedParticles(); }
     }
-    if (current) { chamberFrame(dt); requestAnimationFrame(frame); return; }
+    if (current) { chamberFrame(dt); return; }
     const moving = Math.abs(target - depth) > 0.00005;
-    if (N.still && !moving && !dirty) { requestAnimationFrame(frame); return; }
+    if (N.still && !moving && !dirty) return;
     T += dt * N.speed();
     const k = N.reduced || N.still ? 1 : 1 - Math.pow(0.0015, dt);  // sinking: depth eases toward the scroll
     depth = lerp(depth, target, k);
@@ -800,8 +804,9 @@ void main(){
     updateChip(); updateSpiral(T);
     N.sound.update(depth, dt);
     dirty = false;
-    requestAnimationFrame(frame);
   }
+  function frame(now) { step(now); requestAnimationFrame(frame); }
+  N._step = step; // lets an automated test drive frames where rAF does not tick
 
   /* ───────────── Boot ───────────── */
   N.boot = () => {

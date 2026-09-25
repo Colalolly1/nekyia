@@ -298,7 +298,7 @@
     const withdraw = kit.button('Withdraw the projection', () => doWithdraw()); withdraw.disabled = true;
     function startProjection() { proj = Math.floor(Math.random() * 3); projT = 0; withdraw.disabled = false; N.sound.pluck(110, 0.08, 2.5); }
     function doWithdraw() { if (proj < 0) return; proj = -1; withdraw.disabled = true; N.sound.pluck(329.63, 0.06, 2); }
-    kit.onDown = (p) => { if (proj >= 0) { const o = others[proj]; if (Math.hypot(p.x - o.x, p.y - o.y) < 60) doWithdraw(); } };
+    kit.onDown = (p) => { const o = others[proj]; if (proj >= 0 && o && Math.hypot(p.x - o.x, p.y - o.y) < 60) doWithdraw(); };
     kit.onFrame((t, dt) => {
       const { W, H } = kit, p = kit.pointer, S = Math.min(W, H) * 0.2;
       const tx = p.inside ? p.x : W * 0.3 + Math.sin(t * 0.4) * W * 0.12, ty = p.inside ? clamp(p.y, H * 0.35, H * 0.85) : H * 0.62;
@@ -306,7 +306,7 @@
       will.t -= dt;
       if (will.t < 0) { will.t = rnd(2.5, 5); will.x = rnd(-1, 1) * S * 1.2; will.y = rnd(-0.3, 0.3) * S; }
       let sx, sy;
-      if (proj >= 0) { projT += dt; const o = others[proj]; sx = o.x + S * 0.25; sy = o.y + S * 0.62; }
+      if (proj >= 0 && others[proj]) { projT += dt; const o = others[proj]; sx = o.x + S * 0.25; sy = o.y + S * 0.62; }
       else { sx = me.x + S * 0.45 + (will.t > 3.5 ? will.x : 0); sy = me.y + S * 0.62 + (will.t > 3.5 ? will.y : 0); }
       sh.x = lerp(sh.x, sx, 1 - Math.pow(proj >= 0 ? 0.1 : 0.35, dt)); sh.y = lerp(sh.y, sy, 1 - Math.pow(proj >= 0 ? 0.1 : 0.35, dt));
       g.fillStyle = '#1b1530'; g.fillRect(0, 0, W, H);
