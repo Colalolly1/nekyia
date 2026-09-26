@@ -3,7 +3,7 @@
 <script>
 const q=new URLSearchParams(location.search), f=document.getElementById('f'), out=document.getElementById('out');
 if(q.get('w')) f.style.width=q.get('w')+'px';
-f.src='index.html#test'+(q.get('eink')?'-eink':'')+(q.get('phone')?'-phone':'')+(q.get('noenv')?'-noenv':'');
+f.src=(q.get('pub')?'pub.html':'index.html')+(q.get('pub')?'':'#test')+(q.get('eink')?'-eink':'')+(q.get('phone')?'-phone':'')+(q.get('noenv')?'-noenv':'')+(q.get('break')?'-break3d':'');
 const errs=[];
 f.onload=()=>setTimeout(()=>{const w=f.contentWindow; w.addEventListener('error',e=>errs.push(e.message));
  const ce=w.console.error.bind(w.console); w.console.error=(...a)=>{errs.push(a.map(String).join(' ').slice(0,300)); ce(...a);}; const cw=w.console.warn.bind(w.console); w.console.warn=(...a)=>{errs.push('W:'+a.map(String).join(' ').slice(0,300)); cw(...a);};
@@ -21,6 +21,7 @@ f.onload=()=>setTimeout(()=>{const w=f.contentWindow; w.addEventListener('error'
    const A=w.document&&w.F; out.textContent='SWEEP rate='+(w.__rate||'?')+' frames='+frames+' ms/frame='+((performance.now()-t0)/frames).toFixed(2)+' ended='+F.ended+' errs='+errs.length+'\n'+errs.slice(0,6).join('\n');
  } else {
    if(q.get('lite')) F.setLite(true);
+   if(q.get('pub')){ w.document.getElementById('goQuiet').click(); }
    const T=+q.get('t'); F.seek(Math.max(0,T-6));
    let n=0; const iv=setInterval(()=>{ for(let k=0;k<3;k++){ now+=50; F.step(now);} if(++n>=40){ clearInterval(iv); if(q.get('comp')){ const d=w.document, gc=d.getElementById('gl'), fc=d.getElementById('fx'), c=document.getElementById('comp'); const W=w.innerWidth,H=w.innerHeight; c.width=W;c.height=H; c.style.width=W+'px'; c.style.height=H+'px'; const x=c.getContext('2d'); x.drawImage(gc,0,0,W,H); x.drawImage(fc,0,0,W,H); d.body.style.background='transparent'; d.documentElement.style.background='transparent'; gc.style.visibility='hidden'; fc.style.visibility='hidden'; } else if(q.get('probe')){ const d=w.document, gc=d.getElementById('gl'), fc=d.getElementById('fx'); const c=document.createElement('canvas'); c.width=40;c.height=40; const x=c.getContext('2d'); const avg=(cv)=>{x.clearRect(0,0,40,40); x.drawImage(cv,0,0,40,40); const a=x.getImageData(0,0,40,40).data; let s=0; for(let i=0;i<a.length;i+=4) s+=a[i]+a[i+1]+a[i+2]; return (s/(a.length/4)/3).toFixed(1);}; out.textContent='t='+F.t.toFixed(1)+' gl='+gc.width+'x'+gc.height+' avg='+avg(gc)+' fx='+fc.width+'x'+fc.height+' avg='+avg(fc)+' errs='+errs.join('|'); } else if(errs.length) out.textContent='ERR '+errs.join(' | '); } },15);
  }
